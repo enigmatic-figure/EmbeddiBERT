@@ -44,6 +44,12 @@ def make_first_layer_modules(bert_model, qwen_table: torch.Tensor) -> FirstLayer
         teacher_output=copy.deepcopy(layer.output),
         student_output=copy.deepcopy(layer.output),
     )
+    # Recent Transformers releases default BERT to SDPA, which intentionally
+    # returns no attention probabilities. Profile distillation requires the
+    # explicit eager implementation.
+    for attention in (modules.teacher_attention, modules.student_attention):
+        if hasattr(attention.self, "config"):
+            attention.self.config._attn_implementation = "eager"
     for name, module in vars(modules).items():
         module.eval()  # Disable dropout without disabling autograd.
         trainable = name.startswith("student_") and name != "student_embeddings"
