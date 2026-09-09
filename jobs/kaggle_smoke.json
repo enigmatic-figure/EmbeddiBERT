@@ -16,6 +16,7 @@
     "configs/kaggle_smoke.json",
     "src/embeddibert/__init__.py",
     "src/embeddibert/config.py",
+    "src/embeddibert/checkpoint.py",
     "src/embeddibert/embedding_table.py",
     "src/embeddibert/data.py",
     "src/embeddibert/alignment.py",

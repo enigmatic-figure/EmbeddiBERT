@@ -41,6 +41,17 @@ The smoke job limits vocabulary and optimization steps. After it succeeds, use
 `configs/kaggle_full.json` for the complete 30,522-row table and longer first
 layer alignment.
 
+To materialize the compact husk as a standard Transformers model directory:
+
+```powershell
+python scripts/assemble_husk.py `
+  --checkpoint outputs/kaggle_full/first_layer_husk.safetensors `
+  --output-dir outputs/assembled_bert
+```
+
+The first completed full-vocabulary measurements and their limitations are in
+[`docs/initial_kaggle_results.md`](docs/initial_kaggle_results.md).
+
 ## Important design choices
 
 - WordPiece continuations such as `##ing` are rendered as `ing`. The original
@@ -53,4 +64,3 @@ layer alignment.
 - The teacher and student run with dropout disabled during distillation.
 - Model revisions, package versions, device inventory, seeds, and configuration
   are written into the output manifest.
-

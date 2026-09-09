@@ -31,7 +31,12 @@ def ensure_runtime() -> None:
 def main() -> None:
     ensure_runtime()
     root = Path(__file__).resolve().parent
-    config_name = os.environ.get("EMBEDDIBERT_CONFIG", "configs/kaggle_smoke.json")
+    default_config = (
+        "configs/kaggle_full.json"
+        if (root / "configs/kaggle_full.json").exists()
+        else "configs/kaggle_smoke.json"
+    )
+    config_name = os.environ.get("EMBEDDIBERT_CONFIG", default_config)
     config_path = root / config_name
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     run_name = Path(config_name).stem

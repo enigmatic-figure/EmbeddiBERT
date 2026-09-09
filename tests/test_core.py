@@ -1,6 +1,6 @@
 import pytest
 import torch
-
+from safetensors.torch import save_file
 from transformers import BertConfig, BertModel
 
 from embeddibert.alignment import (
@@ -11,6 +11,7 @@ from embeddibert.alignment import (
 )
 from embeddibert.embedding_table import last_token_pool, render_wordpiece
 from embeddibert.experiment import _json_dump
+from embeddibert.checkpoint import apply_first_layer_husk
 
 
 def test_surface_rendering_removes_wordpiece_marker():
@@ -64,3 +65,35 @@ def test_first_layer_modules_accept_exact_replacement_table():
 def test_json_artifacts_reject_nan(tmp_path):
     with pytest.raises(ValueError):
         _json_dump(tmp_path / "bad.json", {"loss": float("nan")})
+
+
+def test_husk_round_trip(tmp_path):
+    config = BertConfig(
+        vocab_size=17,
+        hidden_size=12,
+        num_hidden_layers=1,
+        num_attention_heads=3,
+        intermediate_size=24,
+    )
+    source = BertModel(config)
+    replacement = torch.randn(17, 12)
+    modules = make_first_layer_modules(source, replacement)
+    state = {"word_embeddings": replacement}
+    for prefix, module in (
+        ("attention", modules.student_attention),
+        ("intermediate", modules.student_intermediate),
+        ("output", modules.student_output),
+    ):
+        state.update(
+            {f"{prefix}.{key}": value for key, value in module.state_dict().items()}
+        )
+    path = tmp_path / "husk.safetensors"
+    save_file({key: value.contiguous() for key, value in state.items()}, path)
+
+    target = BertModel(config)
+    apply_first_layer_husk(target, path)
+    assert torch.equal(target.embeddings.word_embeddings.weight, replacement)
+    assert torch.equal(
+        target.encoder.layer[0].attention.self.query.weight,
+        modules.student_attention.self.query.weight,
+    )

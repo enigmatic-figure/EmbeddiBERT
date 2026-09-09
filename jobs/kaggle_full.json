@@ -13,9 +13,10 @@
   "files": [
     "kaggle_entry.py",
     "scripts/run_alignment.py",
-    {"source": "configs/kaggle_full.json", "destination": "configs/kaggle_smoke.json"},
+    "configs/kaggle_full.json",
     "src/embeddibert/__init__.py",
     "src/embeddibert/config.py",
+    "src/embeddibert/checkpoint.py",
     "src/embeddibert/embedding_table.py",
     "src/embeddibert/data.py",
     "src/embeddibert/alignment.py",
