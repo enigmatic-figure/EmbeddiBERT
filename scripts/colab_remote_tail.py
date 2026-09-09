@@ -25,14 +25,23 @@ if pid > 0:
             process_elapsed_seconds = boot_seconds - (int(fields[21]) / clock_ticks)
 log_path = Path("/content/continuous_training_v2.log")
 lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-progress_path = Path(
-    "/content/embeddibert_continuous/sentence_cache/train/progress.json"
-)
-progress = (
-    json.loads(progress_path.read_text()) if progress_path.exists() else None
-)
+root = Path("/content/embeddibert_continuous")
+progress = {}
+for split in ("train", "dev", "test"):
+    split_dir = root / "sentence_cache" / split
+    progress_path = split_dir / "progress.json"
+    metadata_path = split_dir / "metadata.json"
+    progress[split] = {
+        "progress": (
+            json.loads(progress_path.read_text()) if progress_path.exists() else None
+        ),
+        "metadata": (
+            json.loads(metadata_path.read_text()) if metadata_path.exists() else None
+        ),
+    }
 tail = [line[-1000:] for line in lines[-3:]]
 disk = shutil.disk_usage("/content")
+result_path = root / "result.json"
 print(
     json.dumps(
         {
@@ -42,6 +51,7 @@ print(
             "process_elapsed_seconds": process_elapsed_seconds,
             "content_free_gib": disk.free / (1024**3),
             "progress": progress,
+            "result_exists": result_path.exists(),
             "tail": tail,
         },
         indent=2,
