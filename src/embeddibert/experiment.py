@@ -81,7 +81,10 @@ def run_experiment(config: ExperimentConfig) -> dict:
         torch.cuda.empty_cache()
 
     bert = BertModel.from_pretrained(
-        config.bert_model, revision=config.bert_revision, torch_dtype=dtype
+        config.bert_model,
+        revision=config.bert_revision,
+        torch_dtype=dtype,
+        attn_implementation="eager",
     )
     original_table = bert.embeddings.word_embeddings.weight.detach().float().cpu()
     if table_result.table.shape[0] < original_table.shape[0]:

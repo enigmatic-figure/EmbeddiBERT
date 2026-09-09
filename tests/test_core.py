@@ -2,7 +2,12 @@ import torch
 
 from transformers import BertConfig, BertModel
 
-from embeddibert.alignment import attention_kl, make_first_layer_modules, masked_mse
+from embeddibert.alignment import (
+    _attention_forward,
+    attention_kl,
+    make_first_layer_modules,
+    masked_mse,
+)
 from embeddibert.embedding_table import last_token_pool, render_wordpiece
 
 
@@ -47,3 +52,8 @@ def test_first_layer_modules_accept_exact_replacement_table():
     replacement = torch.randn(17, 12)
     modules = make_first_layer_modules(bert, replacement)
     assert torch.equal(modules.student_embeddings.word_embeddings.weight, replacement)
+    hidden = torch.randn(2, 5, 12)
+    mask = torch.ones(2, 5, dtype=torch.long)
+    output, probabilities = _attention_forward(modules.student_attention, hidden, mask)
+    assert output.shape == (2, 5, 12)
+    assert probabilities.shape == (2, 3, 5, 5)
