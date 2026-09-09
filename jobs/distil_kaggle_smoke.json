@@ -16,6 +16,7 @@
     "configs/distil_kaggle_smoke.json",
     "src/embeddibert/__init__.py",
     "src/embeddibert/alignment.py",
+    "src/embeddibert/data.py",
     "src/embeddibert/embedding_table.py",
     "src/embeddibert/wiki727.py",
     "src/embeddibert/distil_alignment.py"
