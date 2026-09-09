@@ -207,6 +207,10 @@ def train_stages(
                 loss = masked_mse(student_dense, teacher_dense, mask)
                 metrics = {"output_dense_mse": loss.item()}
 
+            if not torch.isfinite(loss):
+                raise FloatingPointError(
+                    f"Non-finite loss in {stage} stage at step {step}: {loss.item()}"
+                )
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(parameters, 1.0)

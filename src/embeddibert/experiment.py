@@ -19,7 +19,9 @@ from .embedding_table import build_qwen_embedding_table, save_embedding_table, t
 
 
 def _json_dump(path: Path, payload) -> None:
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, allow_nan=False), encoding="utf-8"
+    )
 
 
 def _module_state(prefix: str, module, output: dict[str, torch.Tensor]) -> None:
@@ -83,7 +85,9 @@ def run_experiment(config: ExperimentConfig) -> dict:
     bert = BertModel.from_pretrained(
         config.bert_model,
         revision=config.bert_revision,
-        torch_dtype=dtype,
+        # Optimizing BERT directly in FP16 with AdamW overflows quickly on T4.
+        # Only the Qwen inference pass needs reduced precision at this scale.
+        torch_dtype=torch.float32,
         attn_implementation="eager",
     )
     original_table = bert.embeddings.word_embeddings.weight.detach().float().cpu()

@@ -21,7 +21,7 @@ def ensure_runtime() -> None:
                 "pip",
                 "install",
                 "--quiet",
-                "transformers>=4.51,<5",
+                "transformers>=4.51,<6",
                 "safetensors>=0.4.5",
             ],
             check=True,

@@ -1,3 +1,4 @@
+import pytest
 import torch
 
 from transformers import BertConfig, BertModel
@@ -9,6 +10,7 @@ from embeddibert.alignment import (
     masked_mse,
 )
 from embeddibert.embedding_table import last_token_pool, render_wordpiece
+from embeddibert.experiment import _json_dump
 
 
 def test_surface_rendering_removes_wordpiece_marker():
@@ -57,3 +59,8 @@ def test_first_layer_modules_accept_exact_replacement_table():
     output, probabilities = _attention_forward(modules.student_attention, hidden, mask)
     assert output.shape == (2, 5, 12)
     assert probabilities.shape == (2, 3, 5, 5)
+
+
+def test_json_artifacts_reject_nan(tmp_path):
+    with pytest.raises(ValueError):
+        _json_dump(tmp_path / "bad.json", {"loss": float("nan")})
