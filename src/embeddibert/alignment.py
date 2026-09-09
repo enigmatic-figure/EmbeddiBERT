@@ -31,7 +31,8 @@ def make_first_layer_modules(bert_model, qwen_table: torch.Tensor) -> FirstLayer
     if qwen_table.shape != expected:
         raise ValueError(f"Replacement table shape {qwen_table.shape} != BERT shape {expected}")
     with torch.no_grad():
-        student_embeddings.word_embeddings.weight.copy_(qwen_table.to(expected.dtype))
+        target_dtype = student_embeddings.word_embeddings.weight.dtype
+        student_embeddings.word_embeddings.weight.copy_(qwen_table.to(target_dtype))
 
     modules = FirstLayerModules(
         teacher_embeddings=teacher_embeddings,
@@ -206,4 +207,3 @@ def train_stages(
             optimizer.step()
             if step == 1 or step % log_every == 0 or step == steps:
                 log({"stage": stage, "step": step, "loss": loss.item(), **metrics})
-

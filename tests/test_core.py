@@ -1,6 +1,8 @@
 import torch
 
-from embeddibert.alignment import attention_kl, masked_mse
+from transformers import BertConfig, BertModel
+
+from embeddibert.alignment import attention_kl, make_first_layer_modules, masked_mse
 from embeddibert.embedding_table import last_token_pool, render_wordpiece
 
 
@@ -31,3 +33,17 @@ def test_masked_losses_ignore_padding_and_match_identity():
     assert masked_mse(tensor, tensor, mask).item() == 0.0
     probs = torch.softmax(torch.randn(2, 4, 3, 3), dim=-1)
     assert abs(attention_kl(probs, probs, mask).item()) < 1e-6
+
+
+def test_first_layer_modules_accept_exact_replacement_table():
+    config = BertConfig(
+        vocab_size=17,
+        hidden_size=12,
+        num_hidden_layers=1,
+        num_attention_heads=3,
+        intermediate_size=24,
+    )
+    bert = BertModel(config)
+    replacement = torch.randn(17, 12)
+    modules = make_first_layer_modules(bert, replacement)
+    assert torch.equal(modules.student_embeddings.word_embeddings.weight, replacement)
