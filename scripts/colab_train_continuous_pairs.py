@@ -313,7 +313,7 @@ def build_split_cache(split: str, parquet_path: Path, tokenizer, qwen) -> dict:
     metadata["truncated_sentences"] = progress["truncated_sentences"]
     metadata["embedding_sha256"] = sha256(split_dir / "embeddings.f16")
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    emit("cache_complete", split=split, **metadata)
+    emit("cache_complete", **metadata)
     return metadata
 
 
