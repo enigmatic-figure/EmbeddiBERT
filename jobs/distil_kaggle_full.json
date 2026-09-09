@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kernel": {
-    "id": "finnbogiabrahamson/embeddibert-distil6-independent",
-    "title": "EmbeddiBERT Distil6 Independent",
+    "id": "finnbogiabrahamson/embeddibert-distil6-independent-v1",
+    "title": "EmbeddiBERT Distil6 Independent v1",
     "code_file": "kaggle_distil_entry.py",
     "kernel_type": "script",
     "is_private": true,
