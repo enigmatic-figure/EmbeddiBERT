@@ -52,6 +52,10 @@ python scripts/assemble_husk.py `
 The first completed full-vocabulary measurements and their limitations are in
 [`docs/initial_kaggle_results.md`](docs/initial_kaggle_results.md).
 
+The audited DistilBERT cross-segment materials, six-layer alignment contract,
+and controlled end-to-end benchmark design are in
+[`docs/distilbert_inquiry.md`](docs/distilbert_inquiry.md).
+
 ## Important design choices
 
 - WordPiece continuations such as `##ing` are rendered as `ing`. The original

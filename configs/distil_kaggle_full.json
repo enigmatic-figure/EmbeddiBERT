@@ -1,0 +1,17 @@
+{
+  "corpus_path": "data/wiki727_alignment_8192.jsonl",
+  "output_dir": "/kaggle/working/distil_independent",
+  "max_vocab_tokens": null,
+  "embedding_batch_size": 384,
+  "sequence_length": 128,
+  "train_batch_size": 16,
+  "eval_batch_size": 24,
+  "eval_batches": 16,
+  "attention_steps_per_layer": 400,
+  "intermediate_steps_per_layer": 150,
+  "output_steps_per_layer": 150,
+  "attention_learning_rate": 0.0002,
+  "projection_learning_rate": 0.0002,
+  "log_every": 50
+}
+

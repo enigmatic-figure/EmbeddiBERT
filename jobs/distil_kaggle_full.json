@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kernel": {
+    "id": "finnbogiabrahamson/embeddibert-distil6-independent",
+    "title": "EmbeddiBERT Distil6 Independent",
+    "code_file": "kaggle_distil_entry.py",
+    "kernel_type": "script",
+    "is_private": true,
+    "enable_internet": true
+  },
+  "accelerator": "NvidiaTeslaT4",
+  "timeout_seconds": 14400,
+  "files": [
+    "kaggle_distil_entry.py",
+    "scripts/run_distil_alignment.py",
+    "configs/distil_kaggle_full.json",
+    "data/wiki727_alignment_8192.jsonl",
+    "src/embeddibert/__init__.py",
+    "src/embeddibert/alignment.py",
+    "src/embeddibert/embedding_table.py",
+    "src/embeddibert/wiki727.py",
+    "src/embeddibert/distil_alignment.py"
+  ],
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "expected_outputs": ["result.json"]
+}
+
