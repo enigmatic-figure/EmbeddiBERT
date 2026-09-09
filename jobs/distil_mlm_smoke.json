@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "kernel": {
+    "id": "finnbogiabrahamson/embeddibert-distil-mlm-smoke",
+    "title": "EmbeddiBERT Distil MLM Smoke",
+    "code_file": "kaggle_mlm_entry.py",
+    "kernel_type": "script",
+    "is_private": true,
+    "enable_internet": true
+  },
+  "accelerator": "NvidiaTeslaT4",
+  "timeout_seconds": 7200,
+  "files": [
+    "kaggle_mlm_entry.py",
+    "scripts/run_mlm_alignment.py",
+    "configs/distil_mlm_smoke.json",
+    "src/embeddibert/__init__.py",
+    "src/embeddibert/alignment.py",
+    "src/embeddibert/data.py",
+    "src/embeddibert/distil_alignment.py",
+    "src/embeddibert/embedding_table.py",
+    "src/embeddibert/husk.py",
+    "src/embeddibert/mlm_alignment.py",
+    "src/embeddibert/wiki727.py"
+  ],
+  "dataset_sources": [
+    "finnbogiabrahamson/embeddibert-wiki727-alignment",
+    "finnbogiabrahamson/embeddibert-distil6-independent-husk"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "expected_outputs": ["result.json"]
+}

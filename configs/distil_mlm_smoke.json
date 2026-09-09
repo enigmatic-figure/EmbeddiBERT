@@ -1,0 +1,13 @@
+{
+  "corpus_path": "/kaggle/input/embeddibert-wiki727-alignment/wiki727_alignment_8192.jsonl",
+  "independent_husk_path": "/kaggle/input/embeddibert-distil6-independent-husk/distilbert_independent_husk.safetensors",
+  "output_dir": "/kaggle/working/distil_mlm_smoke",
+  "sequence_length": 64,
+  "train_batch_size": 2,
+  "eval_batch_size": 2,
+  "eval_batches": 2,
+  "interpretation_max_steps": 2,
+  "whole_model_max_steps": 2,
+  "eval_every": 1,
+  "early_stopping_patience": 2
+}

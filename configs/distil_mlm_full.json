@@ -1,0 +1,16 @@
+{
+  "corpus_path": "/kaggle/input/embeddibert-wiki727-alignment/wiki727_alignment_8192.jsonl",
+  "independent_husk_path": "/kaggle/input/embeddibert-distil6-independent-husk/distilbert_independent_husk.safetensors",
+  "output_dir": "/kaggle/working/distil_mlm_alignment",
+  "sequence_length": 128,
+  "train_batch_size": 8,
+  "eval_batch_size": 12,
+  "eval_batches": 16,
+  "interpretation_max_steps": 2400,
+  "whole_model_max_steps": 1200,
+  "interpretation_learning_rate": 0.0003,
+  "whole_model_learning_rate": 0.00003,
+  "eval_every": 100,
+  "early_stopping_patience": 6,
+  "minimum_improvement": 0.0001
+}
