@@ -50,7 +50,7 @@ class Config:
     qwen_token_budget: int = 262144
     parquet_document_batch: int = 128
     epochs: int = 2
-    train_batch_size: int = 4096
+    train_batch_size: int = int(os.environ.get("EMBEDDIBERT_TRAIN_BATCH_SIZE", "4096"))
     evaluation_batch_size: int = 8192
     sentence_block_size: int = 65536
     encoder_learning_rate: float = 2e-5
@@ -58,7 +58,9 @@ class Config:
     weight_decay: float = 0.01
     warmup_fraction: float = 0.05
     gradient_clip: float = 1.0
-    checkpoint_every_steps: int = 1000
+    checkpoint_every_steps: int = int(
+        os.environ.get("EMBEDDIBERT_CHECKPOINT_EVERY_STEPS", "1000")
+    )
     seed: int = 71
 
 
@@ -528,7 +530,11 @@ def train(model, metadata: dict[str, dict], device: torch.device) -> dict:
                 save_training_checkpoint(
                     model, optimizer, scheduler, epoch, global_step, 0, result
                 )
-        development = evaluate(model, "dev", metadata["dev"], device)
+        development = (
+            evaluate(model, "dev", metadata["dev"], device)
+            if "dev" in metadata
+            else None
+        )
         epoch_result = {
             "epoch": epoch + 1,
             "training_loss": running_loss / running_examples,
@@ -541,8 +547,11 @@ def train(model, metadata: dict[str, dict], device: torch.device) -> dict:
             model, optimizer, scheduler, epoch + 1, global_step, 0, result
         )
         model.train()
-    result["test"] = evaluate(model, "test", metadata["test"], device)
-    emit("test_complete", **result["test"])
+    if "test" in metadata:
+        result["test"] = evaluate(model, "test", metadata["test"], device)
+        emit("test_complete", **result["test"])
+    else:
+        result["test"] = None
     return result
 
 
@@ -574,36 +583,53 @@ def main() -> None:
         initial_husk_sha256=sha256(initial_husk),
     )
 
-    parquet_paths = {
-        split: Path(
-            hf_hub_download(
-                repo_id=CONFIG.dataset_repo,
-                repo_type="dataset",
-                revision=CONFIG.dataset_revision,
-                filename=f"data/{split}.parquet",
-            )
+    train_only_from_cache = os.environ.get("EMBEDDIBERT_TRAIN_ONLY_FROM_CACHE") == "1"
+    train_cache_only = os.environ.get("EMBEDDIBERT_TRAIN_CACHE_ONLY") == "1"
+    evaluation_deferred = train_only_from_cache or train_cache_only
+    if train_only_from_cache:
+        train_metadata_path = CACHE / "train" / "metadata.json"
+        metadata = {
+            "train": json.loads(train_metadata_path.read_text(encoding="utf-8"))
+        }
+        if metadata["train"].get("status") != "complete":
+            raise RuntimeError("Train-only mode requires a complete train cache")
+        emit(
+            "train_only_from_cache",
+            sentences=metadata["train"]["sentences"],
+            pairs=metadata["train"]["pairs"],
         )
-        for split in ("train", "dev", "test")
-    }
-    tokenizer = AutoTokenizer.from_pretrained(
-        CONFIG.qwen_model,
-        revision=CONFIG.qwen_revision,
-        padding_side="left",
-    )
-    qwen = AutoModel.from_pretrained(
-        CONFIG.qwen_model,
-        revision=CONFIG.qwen_revision,
-        dtype=torch.bfloat16,
-        attn_implementation="sdpa",
-    ).to(device).eval()
-    metadata = {
-        split: build_split_cache(split, path, tokenizer, qwen)
-        for split, path in parquet_paths.items()
-    }
-    del qwen, tokenizer
-    gc.collect()
-    torch.cuda.empty_cache()
-    emit("qwen_released", free_device_gib=torch.cuda.mem_get_info()[0] / 2**30)
+    else:
+        cache_splits = ("train",) if train_cache_only else ("train", "dev", "test")
+        parquet_paths = {
+            split: Path(
+                hf_hub_download(
+                    repo_id=CONFIG.dataset_repo,
+                    repo_type="dataset",
+                    revision=CONFIG.dataset_revision,
+                    filename=f"data/{split}.parquet",
+                )
+            )
+            for split in cache_splits
+        }
+        tokenizer = AutoTokenizer.from_pretrained(
+            CONFIG.qwen_model,
+            revision=CONFIG.qwen_revision,
+            padding_side="left",
+        )
+        qwen = AutoModel.from_pretrained(
+            CONFIG.qwen_model,
+            revision=CONFIG.qwen_revision,
+            dtype=torch.bfloat16,
+            attn_implementation="sdpa",
+        ).to(device).eval()
+        metadata = {
+            split: build_split_cache(split, path, tokenizer, qwen)
+            for split, path in parquet_paths.items()
+        }
+        del qwen, tokenizer
+        gc.collect()
+        torch.cuda.empty_cache()
+        emit("qwen_released", free_device_gib=torch.cuda.mem_get_info()[0] / 2**30)
 
     backbone = AutoModel.from_pretrained(
         CONFIG.base_model,
@@ -631,10 +657,12 @@ def main() -> None:
             "input_contract": "[batch,2,768] Qwen sentence embeddings",
             "qwen_revision": CONFIG.qwen_revision,
             "dataset_revision": CONFIG.dataset_revision,
+            "evaluation_deferred": str(evaluation_deferred),
         },
     )
     result = {
         "status": "complete",
+        "evaluation_deferred": evaluation_deferred,
         "config": asdict(CONFIG),
         "metadata": metadata,
         "training": training,
