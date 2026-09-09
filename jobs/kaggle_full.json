@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kernel": {
     "id": "finnbogiabrahamson/embeddibert-qwen06b-full",
-    "title": "EmbeddiBERT Qwen 0.6B full table and layer 1",
+    "title": "EmbeddiBERT Qwen06B Full",
     "code_file": "kaggle_entry.py",
     "kernel_type": "script",
     "is_private": true,

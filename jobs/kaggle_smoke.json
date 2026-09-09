@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kernel": {
     "id": "finnbogiabrahamson/embeddibert-qwen06b-smoke",
-    "title": "EmbeddiBERT Qwen 0.6B smoke",
+    "title": "EmbeddiBERT Qwen06B Smoke",
     "code_file": "kaggle_entry.py",
     "kernel_type": "script",
     "is_private": true,
@@ -27,4 +27,3 @@
   "model_sources": [],
   "expected_outputs": ["result.json"]
 }
-

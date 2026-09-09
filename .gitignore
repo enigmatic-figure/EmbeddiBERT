@@ -3,9 +3,9 @@ __pycache__/
 .pytest_cache/
 .venv/
 .cache/
+.kaggle/
 outputs/
 runs/
 dist/
 build/
 *.egg-info/
-
