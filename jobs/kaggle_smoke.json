@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kernel": {
+    "id": "finnbogiabrahamson/embeddibert-qwen06b-smoke",
+    "title": "EmbeddiBERT Qwen 0.6B smoke",
+    "code_file": "kaggle_entry.py",
+    "kernel_type": "script",
+    "is_private": true,
+    "enable_internet": true
+  },
+  "accelerator": "NvidiaTeslaT4",
+  "timeout_seconds": 7200,
+  "files": [
+    "kaggle_entry.py",
+    "scripts/run_alignment.py",
+    "configs/kaggle_smoke.json",
+    "src/embeddibert/__init__.py",
+    "src/embeddibert/config.py",
+    "src/embeddibert/embedding_table.py",
+    "src/embeddibert/data.py",
+    "src/embeddibert/alignment.py",
+    "src/embeddibert/experiment.py"
+  ],
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "expected_outputs": ["result.json"]
+}
+

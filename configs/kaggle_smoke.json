@@ -1,0 +1,16 @@
+{
+  "output_dir": "/kaggle/working/kaggle_smoke",
+  "max_vocab_tokens": 512,
+  "embedding_batch_size": 256,
+  "sequence_length": 48,
+  "train_batch_size": 8,
+  "eval_batch_size": 16,
+  "train_examples": 256,
+  "eval_examples": 128,
+  "attention_steps": 30,
+  "intermediate_steps": 10,
+  "output_steps": 10,
+  "log_every": 5,
+  "dtype": "float16"
+}
+

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "kernel": {
+    "id": "finnbogiabrahamson/embeddibert-qwen06b-full",
+    "title": "EmbeddiBERT Qwen 0.6B full table and layer 1",
+    "code_file": "kaggle_entry.py",
+    "kernel_type": "script",
+    "is_private": true,
+    "enable_internet": true
+  },
+  "accelerator": "NvidiaTeslaT4",
+  "timeout_seconds": 14400,
+  "files": [
+    "kaggle_entry.py",
+    "scripts/run_alignment.py",
+    {"source": "configs/kaggle_full.json", "destination": "configs/kaggle_smoke.json"},
+    "src/embeddibert/__init__.py",
+    "src/embeddibert/config.py",
+    "src/embeddibert/embedding_table.py",
+    "src/embeddibert/data.py",
+    "src/embeddibert/alignment.py",
+    "src/embeddibert/experiment.py"
+  ],
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "expected_outputs": ["result.json"]
+}

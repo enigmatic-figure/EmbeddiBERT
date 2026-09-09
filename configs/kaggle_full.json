@@ -1,0 +1,16 @@
+{
+  "output_dir": "/kaggle/working/kaggle_full",
+  "max_vocab_tokens": null,
+  "embedding_batch_size": 384,
+  "sequence_length": 64,
+  "train_batch_size": 16,
+  "eval_batch_size": 32,
+  "train_examples": 4096,
+  "eval_examples": 512,
+  "attention_steps": 1000,
+  "intermediate_steps": 400,
+  "output_steps": 400,
+  "log_every": 25,
+  "dtype": "float16"
+}
+

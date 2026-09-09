@@ -1,0 +1,16 @@
+{
+  "output_dir": "outputs/local_smoke",
+  "max_vocab_tokens": 32,
+  "embedding_batch_size": 16,
+  "sequence_length": 24,
+  "train_batch_size": 2,
+  "eval_batch_size": 2,
+  "train_examples": 4,
+  "eval_examples": 4,
+  "attention_steps": 2,
+  "intermediate_steps": 1,
+  "output_steps": 1,
+  "log_every": 1,
+  "dtype": "float32"
+}
+
