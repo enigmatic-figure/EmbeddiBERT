@@ -44,8 +44,8 @@ class Config:
     )
     qwen_output_dimension: int = 768
     qwen_max_length: int = 32768
-    qwen_max_batch: int = 2048
-    qwen_token_budget: int = 131072
+    qwen_max_batch: int = 4096
+    qwen_token_budget: int = 262144
     parquet_document_batch: int = 128
     epochs: int = 2
     train_batch_size: int = 4096
@@ -231,6 +231,7 @@ def build_split_cache(split: str, parquet_path: Path, tokenizer, qwen) -> dict:
     embeddings, labels_store, valid_store = open_cache(split, metadata, mode)
     parquet = pq.ParquetFile(parquet_path)
     started = time.time()
+    resume_cursor = progress["sentence_cursor"]
     for batch_index, batch in enumerate(
         parquet.iter_batches(
             columns=["text", "label"], batch_size=CONFIG.parquet_document_batch
@@ -276,7 +277,8 @@ def build_split_cache(split: str, parquet_path: Path, tokenizer, qwen) -> dict:
                     (batch_index + 1) * CONFIG.parquet_document_batch,
                 ),
                 sentences=end,
-                sentences_per_second=end / max(time.time() - started, 1e-6),
+                sentences_per_second=(end - resume_cursor)
+                / max(time.time() - started, 1e-6),
                 truncated=progress["truncated_sentences"],
             )
     if progress["sentence_cursor"] != metadata["sentences"]:
