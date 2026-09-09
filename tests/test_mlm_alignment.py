@@ -139,3 +139,4 @@ def test_interpretation_training_step_runs_end_to_end() -> None:
 
     assert result["evaluations"][-1]["teacher_kl"] >= 0.0
     assert result["manifest"]["trainable_parameters"] > 0
+    assert result["termination_reason"] == "maximum_steps"

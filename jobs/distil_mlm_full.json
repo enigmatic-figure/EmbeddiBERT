@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kernel": {
-    "id": "finnbogiabrahamson/embeddibert-distil-mlm-alignment",
-    "title": "EmbeddiBERT Distil MLM Alignment",
+    "id": "finnbogiabrahamson/embeddibert-distil-mlm-plateau-v1",
+    "title": "EmbeddiBERT Distil MLM Plateau v1",
     "code_file": "kaggle_mlm_entry.py",
     "kernel_type": "script",
     "is_private": true,

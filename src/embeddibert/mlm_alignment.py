@@ -45,6 +45,7 @@ class MlmAlignmentConfig:
     minimum_improvement: float = 1e-4
     gradient_clip: float = 1.0
     use_amp: bool = True
+    enforce_interpretation_plateau: bool = True
 
     @classmethod
     def from_json(cls, path: str | Path) -> "MlmAlignmentConfig":
@@ -397,6 +398,11 @@ def train_stage(
         "best": best,
         "evaluations": evaluations,
         "stopped_early": evaluations[-1]["step"] < max_steps,
+        "termination_reason": (
+            "held_out_plateau"
+            if evaluations[-1]["step"] < max_steps
+            else "maximum_steps"
+        ),
     }
 
 
@@ -524,6 +530,28 @@ def run_mlm_alignment(config: MlmAlignmentConfig) -> dict[str, Any]:
         {"baseline": baseline, "interpretation": interpretation},
     )
 
+    if config.enforce_interpretation_plateau and not interpretation["stopped_early"]:
+        result = {
+            "status": "interpretation_limit_reached",
+            "objective": "masked_token_teacher_response_distillation",
+            "baseline": baseline,
+            "interpretation": interpretation,
+            "whole_model": None,
+            "artifacts": {"interpretation": interpretation_artifacts},
+            "interface_anchor": (
+                "Qwen-derived word/vocabulary table frozen; whole model not unlocked"
+            ),
+            "corpus": {
+                "path": config.corpus_path,
+                "train_spans": len(train_texts),
+                "evaluation_spans": len(eval_texts),
+            },
+            "config": asdict(config),
+            "elapsed_seconds": time.time() - started,
+        }
+        _dump_json(output_dir / "result.json", result)
+        return result
+
     whole_model = train_stage(
         teacher,
         student,
@@ -541,7 +569,9 @@ def run_mlm_alignment(config: MlmAlignmentConfig) -> dict[str, Any]:
     )
     whole_artifacts = _save_stage(student, output_dir, "whole_model")
     result = {
-        "status": "complete",
+        "status": (
+            "complete" if whole_model["stopped_early"] else "whole_model_limit_reached"
+        ),
         "objective": "masked_token_teacher_response_distillation",
         "baseline": baseline,
         "interpretation": interpretation,

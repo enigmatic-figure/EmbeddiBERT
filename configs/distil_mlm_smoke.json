@@ -9,5 +9,6 @@
   "interpretation_max_steps": 2,
   "whole_model_max_steps": 2,
   "eval_every": 1,
-  "early_stopping_patience": 2
+  "early_stopping_patience": 2,
+  "enforce_interpretation_plateau": false
 }

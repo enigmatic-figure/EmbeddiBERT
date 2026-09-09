@@ -6,11 +6,12 @@
   "train_batch_size": 8,
   "eval_batch_size": 12,
   "eval_batches": 16,
-  "interpretation_max_steps": 2400,
-  "whole_model_max_steps": 1200,
+  "interpretation_max_steps": 20000,
+  "whole_model_max_steps": 10000,
   "interpretation_learning_rate": 0.0003,
   "whole_model_learning_rate": 0.00003,
-  "eval_every": 100,
-  "early_stopping_patience": 6,
-  "minimum_improvement": 0.0001
+  "eval_every": 200,
+  "early_stopping_patience": 8,
+  "minimum_improvement": 0.001,
+  "enforce_interpretation_plateau": true
 }
