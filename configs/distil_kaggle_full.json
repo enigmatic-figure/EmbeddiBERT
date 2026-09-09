@@ -1,5 +1,5 @@
 {
-  "corpus_path": "data/wiki727_alignment_8192.jsonl",
+  "corpus_path": "/kaggle/input/embeddibert-wiki727-alignment/wiki727_alignment_8192.jsonl",
   "output_dir": "/kaggle/working/distil_independent",
   "max_vocab_tokens": null,
   "embedding_batch_size": 384,
@@ -14,4 +14,3 @@
   "projection_learning_rate": 0.0002,
   "log_every": 50
 }
-

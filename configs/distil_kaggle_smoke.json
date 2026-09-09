@@ -1,5 +1,5 @@
 {
-  "corpus_path": "data/wiki727_alignment_8192.jsonl",
+  "corpus_path": "/kaggle/input/embeddibert-wiki727-alignment/wiki727_alignment_8192.jsonl",
   "output_dir": "/kaggle/working/distil_smoke",
   "max_vocab_tokens": 512,
   "embedding_batch_size": 256,
@@ -12,4 +12,3 @@
   "output_steps_per_layer": 2,
   "log_every": 1
 }
-
