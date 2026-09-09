@@ -17,6 +17,8 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 import numpy as np
 import pyarrow.parquet as pq
 import torch
@@ -61,6 +63,7 @@ class Config:
 
 
 CONFIG = Config()
+RUNTIME_QWEN_TOKEN_BUDGET = CONFIG.qwen_token_budget
 ROOT = Path(CONFIG.output_dir)
 CACHE = ROOT / "sentence_cache"
 CHECKPOINTS = ROOT / "checkpoints"
@@ -125,6 +128,7 @@ def encode_sentences(
     model,
     config: Config,
 ) -> tuple[np.ndarray, int]:
+    global RUNTIME_QWEN_TOKEN_BUDGET
     prompts = [config.instruction + sentence for sentence in sentences]
     encoded = tokenizer(
         prompts,
@@ -142,14 +146,14 @@ def encode_sentences(
         max_length = int(lengths[order[cursor]])
         maximum = min(
             config.qwen_max_batch,
-            max(1, config.qwen_token_budget // max(1, max_length)),
+            max(1, RUNTIME_QWEN_TOKEN_BUDGET // max(1, max_length)),
         )
         end = min(len(order), cursor + maximum)
         # Because rows are length-sorted, shrink if the last row would exceed
         # the padded-token budget.
         while end > cursor + 1:
             padded_length = int(lengths[order[end - 1]])
-            if (end - cursor) * padded_length <= config.qwen_token_budget:
+            if (end - cursor) * padded_length <= RUNTIME_QWEN_TOKEN_BUDGET:
                 break
             end -= 1
         indices = order[cursor:end]
@@ -164,11 +168,29 @@ def encode_sentences(
             return_tensors="pt",
         )
         batch = {key: value.to("cuda", non_blocking=True) for key, value in batch.items()}
-        with torch.autocast("cuda", dtype=torch.bfloat16):
-            hidden = model(**batch).last_hidden_state
-            pooled = hidden[:, -1, : config.qwen_output_dimension]
+        try:
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                hidden = model(**batch).last_hidden_state
+                pooled = hidden[:, -1, : config.qwen_output_dimension]
+        except torch.OutOfMemoryError:
+            failed_tokens = (end - cursor) * int(batch["input_ids"].shape[1])
+            del batch
+            torch.cuda.empty_cache()
+            if end - cursor <= 1:
+                raise
+            RUNTIME_QWEN_TOKEN_BUDGET = max(
+                max_length,
+                min(RUNTIME_QWEN_TOKEN_BUDGET - 1, failed_tokens // 2),
+            )
+            emit(
+                "qwen_budget_reduced",
+                failed_padded_tokens=failed_tokens,
+                new_token_budget=RUNTIME_QWEN_TOKEN_BUDGET,
+            )
+            continue
         pooled = F.normalize(pooled.float(), p=2, dim=-1)
         output[indices] = pooled.cpu().numpy().astype(np.float16)
+        del batch, hidden, pooled
         cursor = end
     return output, truncated
 
