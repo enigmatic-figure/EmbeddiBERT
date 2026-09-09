@@ -1,7 +1,8 @@
 param(
     [string]$Session = 'embeddibert-wiki727-qwen-pairs-20260909-r2',
     [string]$LogPath = 'E:\workspace\EmbeddiBERT\outputs\colab_continuous_training_r2.log',
-    [string]$OutputDir = 'E:\workspace\EmbeddiBERT\outputs\continuous_wiki727'
+    [string]$OutputDir = 'E:\workspace\EmbeddiBERT\outputs\continuous_wiki727',
+    [string]$RemoteLog = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,8 +13,21 @@ function Write-WatchLog([string]$Message) {
     "$(Get-Date -Format o) $Message" | Add-Content -LiteralPath $watchLog
 }
 
+function ConvertTo-WslPath([string]$WindowsPath) {
+    $drive = $WindowsPath.Substring(0, 1).ToLowerInvariant()
+    return "/mnt/$drive/" + (($WindowsPath.Substring(3)) -replace '\\', '/')
+}
+
 Write-WatchLog "watchdog started for $Session"
 while ($true) {
+    if ($RemoteLog) {
+        $localWsl = ConvertTo-WslPath $LogPath
+        $downloadLog = "mighty-colab --auth=oauth2 download -s '$Session' '$RemoteLog' '$localWsl'"
+        wsl -e bash -lc $downloadLog | Add-Content -LiteralPath $watchLog
+        if ($LASTEXITCODE -ne 0) {
+            Write-WatchLog 'remote log snapshot failed; will retry'
+        }
+    }
     $content = if (Test-Path -LiteralPath $LogPath) {
         Get-Content -LiteralPath $LogPath -Raw
     } else { '' }
@@ -33,8 +47,7 @@ $remoteFiles = @(
     @{ Remote = '/content/embeddibert_continuous/events.jsonl'; Local = (Join-Path $OutputDir 'events.jsonl') }
 )
 foreach ($file in $remoteFiles) {
-    $drive = $file.Local.Substring(0, 1).ToLowerInvariant()
-    $localWsl = "/mnt/$drive/" + (($file.Local.Substring(3)) -replace '\\', '/')
+    $localWsl = ConvertTo-WslPath $file.Local
     $download = "mighty-colab --auth=oauth2 download -s '$wslSession' '$($file.Remote)' '$localWsl'"
     Write-WatchLog "downloading $($file.Remote)"
     wsl -e bash -lc $download | Add-Content -LiteralPath $watchLog
