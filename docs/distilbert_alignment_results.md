@@ -57,3 +57,12 @@ baseline at every depth, especially layer 6.
 
 Only after that gate should the token baseline and five-position Qwen treatment
 be trained on the same versioned Wiki-727K pair manifest.
+
+## Execution lessons
+
+Kaggle did not mount a newly attached private Dataset on version 1 of two new
+kernel slugs, while version 2 mounted it correctly. The entry point now resolves
+the corpus by filename beneath `/kaggle/input` and prints the available mounts,
+so rewritten private-dataset paths are diagnosable. Future long runs should use
+a smoke version of the exact kernel slug before submitting the expensive
+version.
