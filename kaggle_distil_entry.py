@@ -10,6 +10,23 @@ from pathlib import Path
 PINNED_TRANSFORMERS = "5.15.1"
 
 
+def resolve_corpus_path(payload: dict, input_root: Path = Path("/kaggle/input")) -> None:
+    configured = Path(payload["corpus_path"])
+    if configured.is_file():
+        return
+
+    candidates = sorted(input_root.rglob(configured.name)) if input_root.is_dir() else []
+    mounts = sorted(path.name for path in input_root.iterdir()) if input_root.is_dir() else []
+    print(f"kaggle_input_mounts={mounts}", flush=True)
+    if len(candidates) == 1:
+        payload["corpus_path"] = str(candidates[0])
+        print(f"resolved_corpus_path={candidates[0]}", flush=True)
+        return
+    raise FileNotFoundError(
+        f"Could not resolve {configured}; matching Kaggle inputs: {candidates}"
+    )
+
+
 def ensure_runtime() -> None:
     try:
         installed = version("transformers")
@@ -41,6 +58,7 @@ def main() -> None:
         else "configs/distil_kaggle_smoke.json"
     )
     payload = json.loads((root / config_name).read_text(encoding="utf-8"))
+    resolve_corpus_path(payload)
     output_dir = Path(payload["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     runtime_config = Path("/kaggle/working/distil_runtime_config.json")
@@ -67,4 +85,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
