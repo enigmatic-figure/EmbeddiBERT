@@ -4,7 +4,7 @@
 
 The frozen Qwen3-Embedding front end already behaves as a programmable feature
 lens for the continuous-input DistilBERT checkpoint, but the checkpoint is not
-yet a general promptable segmenter: instruction meaning, instruction polarity,
+yet a general promptable segmenter: task-related wording, instruction polarity,
 and pair position all move its predictions, while the exact instruction used
 during training remains the strongest overall input distribution.
 
@@ -79,7 +79,7 @@ sentiment/style controls. The full strings are in
 | Style control | 0.8030 | 0.3643 | 0.4006 | 0.3976 |
 | Sentiment control | 0.8008 | 0.3626 | 0.3887 | 0.3847 |
 
-\* Best-slice F1 chooses a threshold on the displayed heldout slice and is
+\* Best-slice F1 chooses a threshold on the displayed comparison slice and is
 therefore descriptive, not a deployable estimate.
 
 The hierarchy replicated. On the comparison half, topic comparison beat

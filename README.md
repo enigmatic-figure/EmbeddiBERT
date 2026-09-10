@@ -68,8 +68,9 @@ has not yet been implemented or tested in this checkpoint.
    pairs represented by cached Qwen vectors.
 5. Corrected English and exploratory Chinese evaluations were run without
    changing the trained checkpoint.
-6. Two frozen-model instruction rounds established semantic, polarity, and
-   left/right role effects without modifying either model.
+6. Two frozen-model instruction rounds established task-related instruction,
+   score-polarity, and left/right position effects without modifying either
+   model.
 
 The earlier results remain available in
 [`docs/initial_kaggle_results.md`](docs/initial_kaggle_results.md) and

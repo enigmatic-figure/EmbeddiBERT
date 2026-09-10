@@ -10,9 +10,9 @@ behavior on a small Chinese Wikipedia probe.
 
 A two-round frozen-model study has now also demonstrated a meaningful
 instruction-conditioned control channel. The exact training instruction is
-still the strongest overall input distribution, but task meaning, prompt
-polarity, and left/right role systematically change the downstream ranking and
-calibration. The best role-specific probes—closure-left/exact-right and
+still the strongest overall input distribution, but task-related instruction
+wording, prompt polarity, and left/right position systematically change the
+downstream ranking and calibration. The best role-specific probes—closure-left/exact-right and
 continuity-left/exact-right—nearly matched the anchor on a document-disjoint,
 partially blinded 250-document comparison slice without retraining.
 

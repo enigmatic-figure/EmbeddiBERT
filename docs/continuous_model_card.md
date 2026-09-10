@@ -163,8 +163,8 @@ the round-two design was frozen.
 The exact training instruction remained best on the comparison documents at
 0.8537 ROC-AUC, 0.4497 AP, and 0.4655 transferred F1. However, instruction
 effects were systematic rather than arbitrary. Topic-comparison wording beat
-generic semantics; semantic segmentation lenses beat a lexically matched style
-placebo; and closure-left/exact-right reached 0.8500 ROC-AUC, 0.4428 AP, and
+generic semantics; task-related segmentation lenses beat a lexically matched
+style placebo; and closure-left/exact-right reached 0.8500 ROC-AUC, 0.4428 AP, and
 0.4593 transferred F1. Keeping the right vector on the trained instruction was
 far more important than keeping the left vector there.
 

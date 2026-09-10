@@ -187,8 +187,11 @@ def test_analysis_rejects_overlapping_threshold_source(
         ANALYSIS.main()
 
 
-def test_analysis_rejects_thresholds_from_changed_scores(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "artifact_name", ("manifest", "labels", "document_ids", "scores")
+)
+def test_analysis_rejects_thresholds_from_changed_input_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, artifact_name: str
 ) -> None:
     round_dir = tmp_path / "round"
     round_dir.mkdir()
@@ -226,7 +229,14 @@ def test_analysis_rejects_thresholds_from_changed_scores(
         ),
         encoding="utf-8",
     )
-    np.save(score_path, np.asarray([0.2, 0.8], dtype=np.float32))
+    artifact_paths = {
+        "manifest": manifest,
+        "labels": round_dir / "labels.npy",
+        "document_ids": round_dir / "pair_document_ids.npy",
+        "scores": score_path,
+    }
+    mutated_path = artifact_paths[artifact_name]
+    mutated_path.write_bytes(mutated_path.read_bytes() + b" ")
     monkeypatch.setattr(
         sys,
         "argv",
