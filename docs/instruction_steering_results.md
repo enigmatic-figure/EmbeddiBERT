@@ -37,11 +37,14 @@ storage. All instructions were encoded at a 32,768-token cap; no sentence was
 truncated. The exact model, dataset, checkpoint, sample digest, environment,
 and cache hashes are recorded in each ignored `results.json` artifact.
 
-Documents 0–249 (10,373 pairs, 1,100 boundaries) formed the adaptive tuning
-slice. Documents 250–499 (10,761 pairs, 1,131 boundaries) were not used to
-select round-two prompts. Every transferred F1 below uses a threshold selected
-on documents 0–249 and then applied unchanged to documents 250–499. Confidence
-intervals are 500-repetition paired bootstraps over whole documents.
+Documents 0–249 (10,373 pairs, 1,100 boundaries) formed the intended adaptive
+tuning slice. Documents 250–499 contain 10,761 pairs and 1,131 boundaries.
+Round-two calculations and the stated decision basis used the first half, but
+the aggregate exposure described next contained information from both halves
+and may have influenced the human prompt-design process. Every transferred F1
+below still uses a threshold selected on documents 0–249 and then applied
+unchanged to documents 250–499. Confidence intervals are 500-repetition paired
+bootstraps over whole documents.
 
 One blinding qualification matters: while monitoring round one, the remote
 event tail accidentally displayed full-500 aggregate metrics for the anchor
@@ -62,7 +65,7 @@ alone, generic semantics, three topic-boundary formulations, and unrelated
 sentiment/style controls. The full strings are in
 [`round1.json`](../experiments/instruction_steering/round1.json).
 
-### Reserved documents 250–499
+### Document-disjoint, partially blinded comparison: documents 250–499
 
 | Instruction | ROC-AUC | AP | Best-slice F1* | Transferred F1 |
 | --- | ---: | ---: | ---: | ---: |
@@ -79,8 +82,8 @@ sentiment/style controls. The full strings are in
 \* Best-slice F1 chooses a threshold on the displayed heldout slice and is
 therefore descriptive, not a deployable estimate.
 
-The hierarchy replicated. On the reserved half, topic comparison beat generic
-semantics by +0.0084 ROC-AUC (95% interval +0.0025 to +0.0138), +0.0198 AP
+The hierarchy replicated. On the comparison half, topic comparison beat
+generic semantics by +0.0084 ROC-AUC (95% interval +0.0025 to +0.0138), +0.0198 AP
 (+0.0086 to +0.0314), and +0.0151 descriptive best-slice F1 (+0.0032 to
 +0.0282). Task-aware wording therefore carries useful structure beyond merely
 adding an instruction-shaped prefix.
@@ -112,7 +115,11 @@ Only six new instruction encodings were required because four byte-identical
 round-one caches were reused. The three repeated symmetric conditions produced
 byte-identical score arrays across rounds.
 
-### Reserved documents 250–499
+### Document-disjoint, partially blinded comparison: documents 250–499
+
+The table shows the anchor and new/asymmetric round-two probes. The repeated
+`explicit_boundary` and `explicit_continuity` controls are omitted here because
+their score arrays were byte-identical to round one's displayed conditions.
 
 | Condition | ROC-AUC | AP | Best-slice F1* | Transferred F1 |
 | --- | ---: | ---: | ---: | ---: |
@@ -133,14 +140,17 @@ byte-identical score arrays across rounds.
 
 ### What the hypotheses resolved
 
-**There is semantic steering beyond geometric proximity.** The rhetorical
-instruction was *less* cosine-similar to the trained representation than the
-matched style placebo (0.896 versus 0.920), yet beat it on the reserved half by
+**Task-related steering is not explained by mean cosine proximity to the
+trained representation alone.** The rhetorical instruction was *less*
+mean-cosine-similar to the trained representation than the matched style
+placebo (0.896 versus 0.920), yet beat it on the comparison half by
 +0.0129 ROC-AUC (95% interval +0.0059 to +0.0193), +0.0202 AP (+0.0065 to
 +0.0345), and +0.0334 descriptive best-slice F1 (+0.0169 to +0.0492). The
 primary-entity and coarse-theme lenses also beat the placebo on all three
-ranking measures. Lexical resemblance to the anchor cannot explain the whole
-effect.
+ranking measures. This rules out a simple monotonic account based on mean
+anchor cosine and is consistent with semantic instruction steering. It does
+not isolate semantics from all other geometric, token-length, or prompt-form
+properties.
 
 **The control channel is sharply role-dependent.** Keeping the right vector on
 the exact training instruction while removing the instruction from the left
@@ -162,7 +172,7 @@ than amplified performance because the right-side distribution shift
 dominated.
 
 **Instructions provide a powerful score-bias control, not only a ranking
-control.** On the reserved half, changing only the right vector from the exact
+control.** On the comparison half, changing only the right vector from the exact
 instruction to the boundary paraphrase raised the mean boundary probability by
 +0.139 and flipped 20.2% of decisions at threshold 0.5. Changing only the left
 vector to the same paraphrase lowered the mean by -0.032 and flipped 5.2%.
@@ -177,6 +187,15 @@ calibration/operating-point result, not a general accuracy win. Moreover,
 Wiki-727 section boundaries supervise thematic sections, not rhetorical or
 entity-specific segmentation. A prediction counted as an error may be correct
 under the requested alternative lens.
+
+The preregistered expectation that Wiki-727 labels would favor the
+coarse-major-theme lens over the primary-entity and rhetorical lenses was **not
+supported**. Rhetorical function exceeded coarse theme on comparison-half
+ROC-AUC (0.8361 versus 0.8311), AP (0.4167 versus 0.4094), and descriptive
+best-slice F1 (0.4523 versus 0.4355); primary entity also exceeded coarse theme
+on AP. Because these prompts differ in multiple uncontrolled ways and no
+lens-specific gold labels exist, the result is a failed ordering prediction,
+not proof that rhetorical segmentation is intrinsically superior.
 
 ## Interpretation
 
@@ -249,6 +268,9 @@ The harness is
 [`evaluate_instruction_steering.py`](../scripts/evaluate_instruction_steering.py),
 and the document-disjoint analysis is
 [`analyze_instruction_steering.py`](../scripts/analyze_instruction_steering.py).
+Analysis contract v2 binds every transferred threshold to SHA-256 identities
+for the condition manifest, labels, document IDs, and all score arrays, and it
+rejects overlap between threshold-selection and evaluation document ranges.
 Generated artifacts remain ignored under `outputs/instruction_steering/` and
 are mirrored on the RTX 4050 host under
 `/home/jeff/EmbeddiBERT/eval/instruction_steering/run/`.
@@ -256,11 +278,11 @@ are mirrored on the RTX 4050 host under
 | Artifact | SHA-256 |
 | --- | --- |
 | Round-one raw result | `f11714cf36ded6f3af300949787e00c00581411fc7aa98f1727484e2a78fa537` |
-| Round-one tuning analysis | `afde4c2483de3fa88ad29b2ea68ff0bf0caf338eda66d2c8a5816dc213360308` |
-| Round-one reserved analysis | `0a706820639a90dad3e20ab606ca195234aee33c5f168eb891a20af69586ab80` |
+| Round-one tuning analysis | `1efdabbc9e6ec104f20be002854e5c2be7b413cc1ce348455e0b5d07ea4c7dd3` |
+| Round-one comparison analysis | `60b628075c81cbbac59848c2abe01fd7265b23b77e2d4500a9b5e6cc39075d56` |
 | Round-two raw result | `dcfc5107076032e320439372ffd9d07cf7d1b84a4b176777a9624347ac8afc27` |
-| Round-two tuning analysis | `5d6867de7432339bfd08f00349c9405204c12e8cb2e1640cbba62d76eeb3f5d1` |
-| Round-two reserved analysis | `76d17ddfe3cec77cdb178cebfc8cc68c49b5ff349ef74dcbd1e84fd07deecbce` |
+| Round-two tuning analysis | `49a30f4788c362e2b10fd34ac8da97ee8363d7e44fd4b444047390b6a7255ecb` |
+| Round-two comparison analysis | `4d5818bee3024674171881d75674e155757492129dbd6837f6588abd1eb93011` |
 
 The canonical sample digest is
 `266660340abd2a5ef21146d5d8df9beada349e58aabd85fd885dfe2ad2b0fba7`.

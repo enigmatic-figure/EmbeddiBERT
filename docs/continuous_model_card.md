@@ -155,10 +155,12 @@ labels, so this is not a substitute for a curated multilingual benchmark.
 
 Two frozen-model rounds changed only the instruction prepended to Qwen on the
 same 500-document English diagnostic. Documents 0–249 guided adaptive prompt
-design; documents 250–499 supplied a reserved comparison with thresholds
-transferred from the tuning half.
+design. Documents 250–499 supplied a document-disjoint but partially blinded
+comparison with thresholds transferred from the tuning half: full-500
+aggregates for five round-one conditions had inadvertently been seen before
+the round-two design was frozen.
 
-The exact training instruction remained best on the reserved documents at
+The exact training instruction remained best on the comparison documents at
 0.8537 ROC-AUC, 0.4497 AP, and 0.4655 transferred F1. However, instruction
 effects were systematic rather than arbitrary. Topic-comparison wording beat
 generic semantics; semantic segmentation lenses beat a lexically matched style

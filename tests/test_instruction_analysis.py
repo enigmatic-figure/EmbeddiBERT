@@ -24,6 +24,20 @@ sys.modules[ANALYSIS_SPEC.name] = ANALYSIS
 ANALYSIS_SPEC.loader.exec_module(ANALYSIS)
 
 
+def input_artifacts(round_dir: Path, manifest: Path) -> dict[str, object]:
+    return {
+        "analysis_contract": ANALYSIS.ANALYSIS_CONTRACT,
+        "conditions_manifest_sha256": ANALYSIS.file_sha256(manifest),
+        "labels_sha256": ANALYSIS.file_sha256(round_dir / "labels.npy"),
+        "pair_document_ids_sha256": ANALYSIS.file_sha256(
+            round_dir / "pair_document_ids.npy"
+        ),
+        "score_sha256": {
+            "anchor": ANALYSIS.file_sha256(round_dir / "scores.anchor.npy")
+        },
+    }
+
+
 def test_metrics_at_threshold_are_exact() -> None:
     labels = np.asarray([0, 0, 1, 1], dtype=np.uint8)
     scores = np.asarray([0.1, 0.8, 0.6, 0.9], dtype=np.float32)
@@ -66,6 +80,7 @@ def test_analysis_transfers_threshold_from_disjoint_documents(
         json.dumps(
             {
                 "round_id": "test-round",
+                "input_artifacts": input_artifacts(round_dir, manifest),
                 "scope": {
                     "document_start_inclusive": 2,
                     "document_stop_exclusive": 4,
@@ -135,6 +150,7 @@ def test_analysis_rejects_overlapping_threshold_source(
         json.dumps(
             {
                 "round_id": "test-round",
+                "input_artifacts": input_artifacts(round_dir, manifest),
                 "scope": {
                     "document_start_inclusive": 0,
                     "document_stop_exclusive": 1,
@@ -168,4 +184,69 @@ def test_analysis_rejects_overlapping_threshold_source(
         ],
     )
     with pytest.raises(ValueError, match="overlaps"):
+        ANALYSIS.main()
+
+
+def test_analysis_rejects_thresholds_from_changed_scores(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    round_dir = tmp_path / "round"
+    round_dir.mkdir()
+    np.save(round_dir / "labels.npy", np.asarray([0, 1], dtype=np.uint8))
+    np.save(
+        round_dir / "pair_document_ids.npy", np.asarray([0, 0], dtype=np.int32)
+    )
+    score_path = round_dir / "scores.anchor.npy"
+    np.save(score_path, np.asarray([0.1, 0.9], dtype=np.float32))
+    manifest = tmp_path / "conditions.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "round_id": "test-round",
+                "anchor_id": "anchor",
+                "conditions": [{"id": "anchor", "instruction": "test"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    threshold_source = tmp_path / "thresholds.json"
+    threshold_source.write_text(
+        json.dumps(
+            {
+                "round_id": "test-round",
+                "input_artifacts": input_artifacts(round_dir, manifest),
+                "scope": {
+                    "document_start_inclusive": 1,
+                    "document_stop_exclusive": 2,
+                },
+                "conditions": {
+                    "anchor": {"metrics": {"best_slice_threshold": 0.5}}
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    np.save(score_path, np.asarray([0.2, 0.8], dtype=np.float32))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "analyze_instruction_steering.py",
+            "--round-dir",
+            str(round_dir),
+            "--conditions",
+            str(manifest),
+            "--document-start",
+            "0",
+            "--document-stop",
+            "1",
+            "--bootstrap-repetitions",
+            "1",
+            "--threshold-source",
+            str(threshold_source),
+            "--output",
+            str(tmp_path / "analysis.json"),
+        ],
+    )
+    with pytest.raises(ValueError, match="exact manifest"):
         ANALYSIS.main()

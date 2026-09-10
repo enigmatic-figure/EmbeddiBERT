@@ -9,6 +9,7 @@ explicit and estimates uncertainty by resampling whole documents, not pairs.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ BOOTSTRAP_METRICS = (
     "balanced_accuracy",
     "brier",
 )
+ANALYSIS_CONTRACT = "instruction-steering-analysis-v2"
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,6 +53,14 @@ def interval(values: np.ndarray) -> dict[str, float]:
         "p975": float(np.quantile(values, 0.975)),
         "probability_above_zero": float(np.mean(values > 0)),
     }
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def bootstrap_indices(
@@ -164,12 +174,27 @@ def main() -> None:
         raise ValueError("document range is incomplete; refusing a silently changed slice")
 
     scores: dict[str, np.ndarray] = {}
+    score_paths: dict[str, Path] = {}
     for condition_id in condition_ids:
         path = args.round_dir / f"scores.{condition_id}.npy"
         values = np.load(path)
         if values.shape != labels_all.shape:
             raise ValueError(f"score shape mismatch for {condition_id}: {values.shape}")
         scores[condition_id] = values[selected]
+        score_paths[condition_id] = path
+
+    input_artifacts = {
+        "analysis_contract": ANALYSIS_CONTRACT,
+        "conditions_manifest_sha256": file_sha256(args.conditions),
+        "labels_sha256": file_sha256(args.round_dir / "labels.npy"),
+        "pair_document_ids_sha256": file_sha256(
+            args.round_dir / "pair_document_ids.npy"
+        ),
+        "score_sha256": {
+            condition_id: file_sha256(score_paths[condition_id])
+            for condition_id in condition_ids
+        },
+    }
 
     anchor = scores[anchor_id]
     resamples = bootstrap_indices(
@@ -181,6 +206,11 @@ def main() -> None:
         threshold_source = json.loads(args.threshold_source.read_text(encoding="utf-8"))
         if threshold_source["round_id"] != manifest["round_id"]:
             raise ValueError("threshold source belongs to a different round")
+        if threshold_source.get("input_artifacts") != input_artifacts:
+            raise ValueError(
+                "threshold source does not match the exact manifest, labels, "
+                "document IDs, and score arrays"
+            )
         source_scope = threshold_source["scope"]
         source_start = source_scope["document_start_inclusive"]
         source_stop = source_scope["document_stop_exclusive"]
@@ -227,6 +257,7 @@ def main() -> None:
     result = {
         "round_id": manifest["round_id"],
         "anchor_id": anchor_id,
+        "input_artifacts": input_artifacts,
         "scope": {
             "document_start_inclusive": args.document_start,
             "document_stop_exclusive": args.document_stop,
@@ -245,6 +276,7 @@ def main() -> None:
         "threshold_source": (
             {
                 "path": str(args.threshold_source),
+                "sha256": file_sha256(args.threshold_source),
                 "document_start_inclusive": threshold_source["scope"][
                     "document_start_inclusive"
                 ],

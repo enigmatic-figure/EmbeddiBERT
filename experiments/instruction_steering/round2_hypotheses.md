@@ -1,10 +1,18 @@
-# Round-two hypotheses (frozen before execution)
+# Round-two hypotheses and post-execution disclosure
+
+The experimental conditions and hypotheses below were frozen before execution
+at `instruction-steering-round2-design-v1`. This current copy corrects the
+description of the split after an independent review; the immutable tag
+preserves the exact pre-execution text.
 
 ## Evidence used
 
-Only document IDs 0–249 from round one were used for adaptive design: 250
-documents, 10,373 adjacent-sentence pairs, and 1,100 boundaries.  Uncertainty
-below is a 500-repetition paired document bootstrap.
+The adaptive calculations and intended decision basis used document IDs 0–249
+from round one: 250 documents, 10,373 adjacent-sentence pairs, and 1,100
+boundaries. Uncertainty below is a 500-repetition paired document bootstrap.
+However, the aggregate-metric exposure disclosed below contained information
+from all 500 documents and may have influenced the human design process. The
+two halves are document-disjoint but were not information-isolated.
 
 The exact training instruction reached 0.8515 ROC-AUC, 0.4823 average
 precision, and 0.4750 best-slice F1.  Removing the instruction reduced these
@@ -32,8 +40,8 @@ as partially blinded rather than a pristine holdout.
 1. **Training-distribution proximity explains part, but not all, of prompt
    performance.** `matched_style_placebo` keeps much of the anchor's lexical
    frame while explicitly prioritizing style.  Worse ranking than genuine
-   task paraphrases at comparable cosine would be evidence for semantic
-   steering beyond mere geometric proximity.
+   task paraphrases at comparable cosine would argue against a simple
+   mean-anchor-cosine explanation and be consistent with semantic steering.
 2. **Instruction polarity acts as a score-bias control.** Boundary wording
    inflated scores, while continuity wording was much less disruptive at the
    fixed threshold.  Applying each only to the left or right member of the

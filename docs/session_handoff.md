@@ -13,8 +13,8 @@ instruction-conditioned control channel. The exact training instruction is
 still the strongest overall input distribution, but task meaning, prompt
 polarity, and left/right role systematically change the downstream ranking and
 calibration. The best role-specific probes—closure-left/exact-right and
-continuity-left/exact-right—nearly matched the anchor on a reserved
-250-document slice without retraining.
+continuity-left/exact-right—nearly matched the anchor on a document-disjoint,
+partially blinded 250-document comparison slice without retraining.
 
 This checkpoint is a successful interface-transfer proof. It is not a claim of
 incumbent superiority, a reproduction of the provider's unpublished sampling
@@ -107,7 +107,7 @@ not describe the final checkpoint as using it.
 | Continuous Wiki-727K training | Two epochs over 29,997,939 pairs; loss 0.53664 then 0.49693 | Final continuous checkpoint |
 | Corrected English diagnostic | Continuous F1 0.4360, ROC-AUC 0.8526; published baseline F1 0.4334, ROC-AUC 0.8823 | Interface proof; baseline ranks better |
 | Chinese Wikipedia probe | F1 0.3704, ROC-AUC 0.8314 across 931 weakly labeled pairs | Encouraging zero-shot probe, not a benchmark |
-| Instruction-conditioned steering | Task prompts beat generic/style controls; closure-left/exact-right reached 0.8500 ROC-AUC and 0.4593 tuning-threshold-transferred F1 versus 0.8537 and 0.4655 for the exact anchor on reserved documents | Control-channel evidence; prompt-diverse training still required |
+| Instruction-conditioned steering | Task prompts beat generic/style controls; closure-left/exact-right reached 0.8500 ROC-AUC and 0.4593 tuning-threshold-transferred F1 versus 0.8537 and 0.4655 for the exact anchor on document-disjoint, partially blinded comparison documents | Control-channel evidence; prompt-diverse training still required |
 
 ## Parameter accounting
 
@@ -200,7 +200,7 @@ that the downstream encoder is no longer bound to DistilBERT WordPiece IDs.
 - `scripts/evaluate_instruction_steering.py` generates instruction-specific
   Qwen caches and scores symmetric or role-specific prompt conditions.
 - `scripts/analyze_instruction_steering.py` computes document-disjoint metrics,
-  paired document bootstraps, and tuning-to-reserved threshold transfer.
+  paired document bootstraps, and tuning-to-comparison threshold transfer.
 
 Useful command shapes:
 
