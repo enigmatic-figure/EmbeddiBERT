@@ -48,6 +48,10 @@ downstream initialization.
 
 ## Next controlled stage
 
+This section records the plan at the time of the independent result. The linked
+layer-by-layer reconciliation described below was not the path ultimately
+executed.
+
 Run linked reconciliation from the independent bank. At layer `i`, construct
 the teacher input through teacher layers `0..i-1` and the student input through
 the already-selected student layers `0..i-1`, then match layer `i` to the
@@ -57,6 +61,19 @@ baseline at every depth, especially layer 6.
 
 Only after that gate should the token baseline and five-position Qwen treatment
 be trained on the same versioned Wiki-727K pair manifest.
+
+## Subsequent disposition
+
+The project instead reassembled the independent husk under real causal residual
+flow and distilled masked-token teacher responses. A 20,000-step interpretation
+stage reduced teacher KL from 12.0502 to 5.2029 while aligned attention and FFN
+projections remained frozen. That interpretation husk became the initialization
+for downstream continuous-pair training.
+
+The downstream implementation also superseded the proposed five-position
+treatment: it used two adjacent 768-dimensional Qwen sentence vectors through
+`inputs_embeds`, removed the word table, and trained all 45,283,586 remaining
+parameters. See [`continuous_model_card.md`](continuous_model_card.md).
 
 ## Execution lessons
 

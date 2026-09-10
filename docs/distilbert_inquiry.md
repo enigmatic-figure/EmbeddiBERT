@@ -1,5 +1,11 @@
 # DistilBERT cross-segment inquiry
 
+> **Historical planning record.** Sections A through C describe the audited
+> inputs and controlled design accurately. The five-position treatment in
+> section D was a proposal, not the model ultimately executed. The completed
+> checkpoint uses two adjacent Qwen vectors through `inputs_embeds`; see
+> [`continuous_model_card.md`](continuous_model_card.md).
+
 ## Audited inputs
 
 - Canonical base: `distilbert/distilbert-base-uncased` at revision
@@ -95,10 +101,15 @@ class sampling, seed, steps, optimizer, and evaluation thresholds.
 
 ### D. Qwen-input treatment
 
-Encode each left and right sentence once with frozen Qwen. Feed DistilBERT five
-continuous positions: `[CLS embedding, left Qwen vector, SEP embedding, right
-Qwen vector, SEP embedding]`. Initialize the encoder from the six-layer husk and
-use the same classification head and labeled examples as the token baseline.
+The original proposal was to encode each left and right sentence once with
+frozen Qwen and feed five continuous positions: `[CLS embedding, left Qwen
+vector, SEP embedding, right Qwen vector, SEP embedding]`.
+
+The executed treatment deliberately simplified that contract to exactly two
+positions, `[left Qwen vector, right Qwen vector]`, with shape `[batch, 2, 768]`.
+It used a pair-feature head over the final states and removed the DistilBERT word
+table entirely. This executed contract supersedes the paragraph above for all
+reported downstream results.
 
 The first treatment tests the core substitution cleanly. A later context-window
 treatment can provide several Qwen vectors per side, allowing each vector to
@@ -115,4 +126,3 @@ The 47.7 GB Bright Data Wikipedia CSV has richer structured sections, but its
 license and extraction pipeline differ from Wiki-727K. Keep it for a later
 out-of-distribution or long-context evaluation after its license is reviewed;
 do not mix it into the primary reproduction.
-

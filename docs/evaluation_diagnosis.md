@@ -49,6 +49,29 @@ the natural distribution. The published 0.85 metrics therefore cannot be
 compared directly without reconstructing the provider's sampled validation
 protocol.
 
+The corrected baseline confusion matrix is TN 14,321, FP 4,582, FN 346, and TP
+1,885. Its true-positive rate is 0.8449 and false-positive rate is 0.2424. At the
+observed 10.56% boundary prevalence those rates imply precision 0.2915. If the
+same rates are reweighted to a 50/50 class prior, precision becomes 0.7771. The
+apparently abysmal precision is therefore chiefly an operating-prior and
+calibration problem, not evidence that nine out of ten predictions would be
+wrong under the provider's sampled validation distribution.
+
+Class averaging is another unresolved disconnect. On this matched slice the
+baseline's class-0 precision is 0.9764, class-1 precision is 0.2915, macro
+precision is 0.6339, and support-weighted precision is 0.9041. The provider does
+not say whether its precision, recall, and F1 are binary, macro, micro, or
+support-weighted. In single-label classification, support-weighted recall equals
+accuracy; the provider reporting both as 0.85 is therefore consistent with, but
+does not prove, weighted averaging.
+
+Even a balanced 50/50 prior does not fully explain the claimed 0.86 precision:
+with 0.85 recall, that precision would require a false-positive rate near 0.138,
+below the 0.242 observed here. A different sampled validation set, preprocessing
+pipeline, trained checkpoint behavior, threshold, or some combination still
+matters. Because those details are absent, the model-card table is not a
+reproducible target for this experiment.
+
 ## Remaining work for a definitive benchmark
 
 1. Complete the Qwen development cache or explicitly select a deterministic
