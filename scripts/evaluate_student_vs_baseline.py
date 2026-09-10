@@ -48,6 +48,30 @@ def metrics(logits: torch.Tensor, labels: torch.Tensor, loss_sum: float, count: 
             "tp": tp, "fp": fp, "tn": tn, "fn": fn}
 
 
+def score_diagnostics(scores: np.ndarray, labels: np.ndarray) -> dict[str, float]:
+    order = np.argsort(-scores, kind="stable")
+    ranked_labels = labels[order]
+    tp = np.cumsum(ranked_labels == 1)
+    fp = np.cumsum(ranked_labels == 0)
+    positives = int(tp[-1])
+    negatives = int(fp[-1])
+    precision = tp / np.maximum(tp + fp, 1)
+    recall = tp / max(positives, 1)
+    f1 = 2 * precision * recall / np.maximum(precision + recall, 1e-12)
+    best = int(np.argmax(f1))
+    tpr = np.concatenate(([0.0], tp / max(positives, 1), [1.0]))
+    fpr = np.concatenate(([0.0], fp / max(negatives, 1), [1.0]))
+    return {
+        "positive_rate": positives / len(labels),
+        "roc_auc": float(np.trapezoid(tpr, fpr)),
+        "average_precision": float(precision[ranked_labels == 1].mean()),
+        "best_f1": float(f1[best]),
+        "best_f1_threshold": float(scores[order[best]]),
+        "best_f1_precision": float(precision[best]),
+        "best_f1_recall": float(recall[best]),
+    }
+
+
 def load_rows(parquet_path: Path) -> tuple[list[str], np.ndarray]:
     table = pq.read_table(parquet_path, columns=["text", "label"])
     texts = table.column("text").to_pylist()
@@ -77,9 +101,12 @@ def eval_student(model, embeddings: np.memmap, labels: np.ndarray, valid: np.nda
     raise AssertionError("student evaluator replaced at runtime")
 
 
+@torch.inference_mode()
 def evaluate_student(model, embeddings: np.memmap, labels: np.ndarray, valid: np.ndarray, lengths: np.ndarray, device: torch.device, batch_size: int) -> dict:
     tp = fp = tn = fn = count = 0
     loss_sum = 0.0
+    score_rows: list[np.ndarray] = []
+    label_rows: list[np.ndarray] = []
     sentence_cursor = label_cursor = 0
     for length in lengths:
         if length <= 0:
@@ -99,6 +126,8 @@ def evaluate_student(model, embeddings: np.memmap, labels: np.ndarray, valid: np
             with torch.autocast(device_type="cuda", dtype=torch.float16):
                 logits = model(torch.from_numpy(pairs).to(device=device, dtype=torch.float16))
                 loss = F.cross_entropy(logits.float(), target)
+            score_rows.append(torch.softmax(logits.float(), dim=-1)[:, 1].cpu().numpy())
+            label_rows.append(target.cpu().numpy())
             pred = logits.argmax(-1)
             tp += int(((pred == 1) & (target == 1)).sum())
             fp += int(((pred == 1) & (target == 0)).sum())
@@ -108,14 +137,18 @@ def evaluate_student(model, embeddings: np.memmap, labels: np.ndarray, valid: np
             loss_sum += float(loss) * target.numel()
         label_cursor += int(length)
     precision = tp / max(tp + fp, 1); recall = tp / max(tp + fn, 1)
-    return {"examples": count, "loss": loss_sum / count, "accuracy": (tp + tn) / count,
+    result = {"examples": count, "loss": loss_sum / count, "accuracy": (tp + tn) / count,
             "precision": precision, "recall": recall, "f1": 2 * precision * recall / max(precision + recall, 1e-12),
             "tp": tp, "fp": fp, "tn": tn, "fn": fn}
+    result["score_diagnostics"] = score_diagnostics(np.concatenate(score_rows), np.concatenate(label_rows))
+    return result
 
 
 @torch.inference_mode()
 def evaluate_baseline(model, tokenizer, texts: list[str], labels: np.ndarray, valid: np.ndarray, lengths: np.ndarray, device: torch.device, batch_size: int) -> dict:
     tp = fp = tn = fn = count = 0; loss_sum = 0.0; label_cursor = 0
+    score_rows: list[np.ndarray] = []
+    label_rows: list[np.ndarray] = []
     for doc_index, text in enumerate(texts):
         sentences = text.split("\n")
         if sentences and sentences[-1] == "":
@@ -123,7 +156,8 @@ def evaluate_baseline(model, tokenizer, texts: list[str], labels: np.ndarray, va
         length = int(lengths[doc_index])
         if len(sentences) != length:
             raise RuntimeError(f"sentence/label mismatch at document {doc_index}: {len(sentences)} != {length}")
-        pairs = [(sentences[i + 1], sentences[i]) for i in range(length - 1)]
+        # The model-card executable examples and widget use Left [SEP] Right.
+        pairs = [(sentences[i], sentences[i + 1]) for i in range(length - 1)]
         for start in range(0, length, batch_size):
             batch_pairs = pairs[start:start + batch_size]
             valid_mask = valid[label_cursor + start:label_cursor + start + len(batch_pairs)].astype(bool)
@@ -134,15 +168,19 @@ def evaluate_baseline(model, tokenizer, texts: list[str], labels: np.ndarray, va
             encoded = {key: value.to(device) for key, value in encoded.items()}
             target = torch.from_numpy(labels[label_cursor + start:label_cursor + start + len(valid_mask)][valid_mask]).to(device)
             logits = model(**encoded).logits
+            score_rows.append(torch.softmax(logits.float(), dim=-1)[:, 1].cpu().numpy())
+            label_rows.append(target.cpu().numpy())
             loss_sum += float(F.cross_entropy(logits.float(), target)) * target.numel()
             pred = logits.argmax(-1)
             tp += int(((pred == 1) & (target == 1)).sum()); fp += int(((pred == 1) & (target == 0)).sum())
             tn += int(((pred == 0) & (target == 0)).sum()); fn += int(((pred == 0) & (target == 1)).sum()); count += target.numel()
         label_cursor += length
     precision = tp / max(tp + fp, 1); recall = tp / max(tp + fn, 1)
-    return {"examples": count, "loss": loss_sum / count, "accuracy": (tp + tn) / count,
+    result = {"examples": count, "loss": loss_sum / count, "accuracy": (tp + tn) / count,
             "precision": precision, "recall": recall, "f1": 2 * precision * recall / max(precision + recall, 1e-12),
             "tp": tp, "fp": fp, "tn": tn, "fn": fn}
+    result["score_diagnostics"] = score_diagnostics(np.concatenate(score_rows), np.concatenate(label_rows))
+    return result
 
 
 def main() -> None:
@@ -170,7 +208,7 @@ def main() -> None:
     if len(labels) != embeddings.shape[0] or len(valid) != embeddings.shape[0] or expected_rows > embeddings.shape[0]:
         raise RuntimeError(f"cache/data mismatch: embeddings={embeddings.shape} labels={len(labels)} docs={len(lengths)} lengths={lengths.sum()}")
     started = time.time()
-    result = {"dataset": str(args.parquet), "documents": len(texts), "pairs": int(valid.sum()), "device": torch.cuda.get_device_name(0)}
+    result = {"dataset": str(args.parquet), "documents": len(texts), "pairs": int(valid[:expected_rows].sum()), "device": torch.cuda.get_device_name(0)}
     if args.only in ("student", "both"):
         backbone = AutoModel.from_pretrained("distilbert/distilbert-base-uncased").to(device).eval()
         student = ContinuousPairClassifier(backbone)
