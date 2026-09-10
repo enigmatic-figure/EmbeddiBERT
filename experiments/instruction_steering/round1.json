@@ -1,0 +1,51 @@
+{
+  "round_id": "round1",
+  "anchor_id": "trained_boundary",
+  "conditions": [
+    {
+      "id": "trained_boundary",
+      "description": "Exact instruction used to construct every downstream training vector.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: "
+    },
+    {
+      "id": "no_instruction",
+      "description": "Raw-sentence control with no instruction or query scaffold.",
+      "instruction": ""
+    },
+    {
+      "id": "query_scaffold",
+      "description": "Formatting control retaining only the query marker.",
+      "instruction": "Query: "
+    },
+    {
+      "id": "generic_semantics",
+      "description": "Generic semantic-similarity representation without document-boundary language.",
+      "instruction": "Instruct: Represent this sentence's overall meaning for general semantic similarity.\nQuery: "
+    },
+    {
+      "id": "topic_comparison",
+      "description": "Task-adjacent prompt emphasizing comparison of neighboring topics and continuity.",
+      "instruction": "Instruct: Represent this Wikipedia sentence's main topic so it can be compared with an adjacent sentence for topical continuity.\nQuery: "
+    },
+    {
+      "id": "explicit_boundary",
+      "description": "Close task paraphrase with stronger different-topic and new-section wording.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for detecting a topic boundary, emphasizing cues that the following sentence starts a different topic or a new section.\nQuery: "
+    },
+    {
+      "id": "explicit_continuity",
+      "description": "Polarity probe emphasizing evidence that the following sentence stays in the same section.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that the following sentence continues the same topic and remains in the current section.\nQuery: "
+    },
+    {
+      "id": "sentiment_control",
+      "description": "Unrelated semantic-task control emphasizing sentiment and emotional tone.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for sentiment analysis, emphasizing emotional tone and evaluative language.\nQuery: "
+    },
+    {
+      "id": "style_control",
+      "description": "Unrelated structural-task control emphasizing syntax, punctuation, and writing style.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for writing-style analysis, emphasizing syntax, punctuation, and rhetorical form.\nQuery: "
+    }
+  ]
+}
