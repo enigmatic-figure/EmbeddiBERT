@@ -79,6 +79,24 @@ def test_document_sample_preserves_document_boundaries_and_left_labels(
     assert sample.pair_document_ids.tolist() == [0, 0, 1]
     assert sample.sentence_offsets.tolist() == [0, 3, 5]
     assert sample.pair_offsets.tolist() == [0, 2, 3]
+    with pytest.raises(ValueError, match="sample contract mismatch"):
+        MODULE.validate_canonical_sample(sample)
+
+
+def test_canonical_artifact_contract_fails_closed() -> None:
+    MODULE.validate_canonical_artifacts(
+        max_documents=MODULE.EXPECTED_DOCUMENTS,
+        parquet_sha256=MODULE.EXPECTED_DEV_PARQUET_SHA256,
+        student_sha256=MODULE.EXPECTED_STUDENT_SHA256,
+        source_commit="a" * 40,
+    )
+    with pytest.raises(ValueError, match="pinned Wiki-727K dev parquet"):
+        MODULE.validate_canonical_artifacts(
+            max_documents=MODULE.EXPECTED_DOCUMENTS,
+            parquet_sha256="wrong",
+            student_sha256=MODULE.EXPECTED_STUDENT_SHA256,
+            source_commit="a" * 40,
+        )
 
 
 def test_metrics_and_anchor_shift_are_exact() -> None:
@@ -95,6 +113,35 @@ def test_metrics_and_anchor_shift_are_exact() -> None:
     assert shift["negative_to_positive"] == 1
     assert shift["positive_to_negative"] == 1
     assert shift["mean_delta"] == pytest.approx(0.025)
+
+
+def test_rank_metrics_group_ties_and_are_permutation_invariant() -> None:
+    labels = np.asarray([1, 0], dtype=np.uint8)
+    scores = np.asarray([0.5, 0.5], dtype=np.float32)
+    forward = MODULE.rank_metrics(labels, scores)
+    reverse = MODULE.rank_metrics(labels[::-1], scores[::-1])
+    assert forward == reverse
+    assert forward["roc_auc"] == 0.5
+    assert forward["average_precision"] == 0.5
+    assert forward["best_slice_f1"] == pytest.approx(2 / 3)
+    assert forward["best_slice_threshold"] == 0.5
+
+
+def test_cosine_summary_renormalizes_float16_rows(tmp_path: Path) -> None:
+    first_path = tmp_path / "first.f16"
+    second_path = tmp_path / "second.f16"
+    first = np.memmap(first_path, dtype=np.float16, mode="w+", shape=(2, 3))
+    second = np.memmap(
+        second_path, dtype=np.float16, mode="w+", shape=(2, 3)
+    )
+    first[:] = [[2, 0, 0], [0, 3, 0]]
+    second[:] = [[5, 0, 0], [0, -7, 0]]
+    first.flush()
+    second.flush()
+    summary = MODULE.cosine_summary(first, second)
+    assert summary["mean"] == 0.0
+    assert summary["p05"] == pytest.approx(-0.9)
+    assert summary["p95"] == pytest.approx(0.9)
 
 
 def test_cache_identity_binds_instruction_and_sample() -> None:

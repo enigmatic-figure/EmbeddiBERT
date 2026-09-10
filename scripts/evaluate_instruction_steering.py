@@ -34,6 +34,23 @@ WIKI727_DATASET = "TankNee/wiki-727k"
 WIKI727_REVISION = "deea53e4b00c63dc158dca4071a4e4a5a38e2934"
 DIMENSION = 768
 CONDITION_ID = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+EXPECTED_DEV_PARQUET_SHA256 = (
+    "eb6eb83e96ae6e520e6038257369a0cb4b9d5e189a3f3eadb55206ab1a57b396"
+)
+EXPECTED_STUDENT_SHA256 = (
+    "9ca37201a77f29cc53aaa55817e90e81c10a18bd629d91ea3eb6654801d088b7"
+)
+EXPECTED_DOCUMENTS = 500
+EXPECTED_SENTENCES = 21634
+EXPECTED_PAIRS = 21134
+EXPECTED_BOUNDARIES = 2231
+EXPECTED_SAMPLE_DIGEST = (
+    "266660340abd2a5ef21146d5d8df9beada349e58aabd85fd885dfe2ad2b0fba7"
+)
+ENCODER_CONTRACT_VERSION = (
+    "instruction-steering-cache-v2:qwen-bf16:sdpa:no-kv-cache:left-padding:"
+    "pad-multiple-8:last-token:first-768:l2-fp32:store-fp16"
+)
 
 
 @dataclass(frozen=True)
@@ -185,16 +202,66 @@ def load_document_sample(parquet_path: Path, max_documents: int) -> DocumentSamp
     )
 
 
-def cache_identity(sample_digest: str, instruction: str, max_length: int) -> str:
+def validate_canonical_artifacts(
+    *,
+    max_documents: int,
+    parquet_sha256: str,
+    student_sha256: str,
+    source_commit: str,
+) -> None:
+    if max_documents != EXPECTED_DOCUMENTS:
+        raise ValueError(
+            f"Canonical evaluation requires {EXPECTED_DOCUMENTS} documents"
+        )
+    if parquet_sha256 != EXPECTED_DEV_PARQUET_SHA256:
+        raise ValueError(
+            "Canonical evaluation requires the pinned Wiki-727K dev parquet: "
+            f"{parquet_sha256} != {EXPECTED_DEV_PARQUET_SHA256}"
+        )
+    if student_sha256 != EXPECTED_STUDENT_SHA256:
+        raise ValueError(
+            "Canonical evaluation requires the final continuous checkpoint: "
+            f"{student_sha256} != {EXPECTED_STUDENT_SHA256}"
+        )
+    if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
+        raise ValueError("Canonical evaluation requires a 40-character source commit")
+
+
+def validate_canonical_sample(sample: DocumentSample) -> None:
+    observed = (
+        len(sample.document_indices),
+        len(sample.sentences),
+        len(sample.labels),
+        int(sample.labels.sum()),
+        sample.digest,
+    )
+    expected = (
+        EXPECTED_DOCUMENTS,
+        EXPECTED_SENTENCES,
+        EXPECTED_PAIRS,
+        EXPECTED_BOUNDARIES,
+        EXPECTED_SAMPLE_DIGEST,
+    )
+    if observed != expected:
+        raise ValueError(f"Canonical sample contract mismatch: {observed!r} != {expected!r}")
+
+
+def cache_identity(
+    sample_digest: str,
+    instruction: str,
+    max_length: int,
+    generator_fingerprint: str = "test-generator",
+) -> str:
     return stable_digest(
         (
-            "instruction-steering-cache-v1",
+            ENCODER_CONTRACT_VERSION,
             QWEN_MODEL,
             QWEN_REVISION,
             str(DIMENSION),
             str(max_length),
             sample_digest,
             instruction,
+            generator_fingerprint,
         )
     )
 
@@ -237,12 +304,16 @@ def encode_instruction(
     output_path: Path,
     metadata_path: Path,
     sample_digest: str,
+    generator: dict[str, Any],
+    generator_fingerprint: str,
     events_path: Path,
 ) -> dict[str, Any]:
     import torch
     import torch.nn.functional as functional
 
-    identity = cache_identity(sample_digest, instruction, max_length)
+    identity = cache_identity(
+        sample_digest, instruction, max_length, generator_fingerprint
+    )
     if output_path.is_file() and metadata_path.is_file():
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         expected_bytes = len(sentences) * DIMENSION * np.dtype(np.float16).itemsize
@@ -250,6 +321,7 @@ def encode_instruction(
             metadata.get("status") == "complete"
             and metadata.get("identity") == identity
             and output_path.stat().st_size == expected_bytes
+            and metadata.get("vector_sha256") == sha256_file(output_path)
         ):
             emit(events_path, "embedding_cache_reused", identity=identity)
             return metadata
@@ -303,7 +375,7 @@ def encode_instruction(
         }
         try:
             with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-                hidden = model(**batch).last_hidden_state
+                hidden = model(**batch, use_cache=False).last_hidden_state
                 pooled = hidden[:, -1, :DIMENSION]
                 pooled = functional.normalize(pooled.float(), p=2, dim=-1)
         except torch.OutOfMemoryError:
@@ -352,6 +424,10 @@ def encode_instruction(
         "runtime_token_budget": runtime_budget,
         "elapsed_seconds": time.time() - started,
         "bytes": output_path.stat().st_size,
+        "vector_sha256": sha256_file(output_path),
+        "encoder_contract": ENCODER_CONTRACT_VERSION,
+        "generator": generator,
+        "generator_fingerprint": generator_fingerprint,
     }
     write_json(metadata_path, metadata)
     emit(events_path, "embedding_cache_complete", **metadata)
@@ -399,10 +475,17 @@ def iter_pair_batches(
 def rank_metrics(labels: np.ndarray, scores: np.ndarray) -> dict[str, float]:
     order = np.argsort(-scores, kind="stable")
     ranked_labels = labels[order]
-    tp = np.cumsum(ranked_labels == 1)
-    fp = np.cumsum(ranked_labels == 0)
-    positives = int(tp[-1])
-    negatives = int(fp[-1])
+    ranked_scores = scores[order]
+    cumulative_tp = np.cumsum(ranked_labels == 1)
+    cumulative_fp = np.cumsum(ranked_labels == 0)
+    # Thresholds cannot split a group of examples with equal scores.
+    boundaries = np.flatnonzero(
+        np.concatenate((ranked_scores[:-1] != ranked_scores[1:], [True]))
+    )
+    tp = cumulative_tp[boundaries]
+    fp = cumulative_fp[boundaries]
+    positives = int(cumulative_tp[-1])
+    negatives = int(cumulative_fp[-1])
     precision = tp / np.maximum(tp + fp, 1)
     recall = tp / max(positives, 1)
     f1 = 2 * precision * recall / np.maximum(precision + recall, 1e-12)
@@ -411,9 +494,11 @@ def rank_metrics(labels: np.ndarray, scores: np.ndarray) -> dict[str, float]:
     fpr = np.concatenate(([0.0], fp / max(negatives, 1), [1.0]))
     return {
         "roc_auc": float(np.trapezoid(tpr, fpr)),
-        "average_precision": float(precision[ranked_labels == 1].mean()),
+        "average_precision": float(
+            np.sum(np.diff(np.concatenate(([0.0], recall))) * precision)
+        ),
         "best_slice_f1": float(f1[best]),
-        "best_slice_threshold": float(scores[order[best]]),
+        "best_slice_threshold": float(ranked_scores[boundaries[best]]),
         "best_slice_precision": float(precision[best]),
         "best_slice_recall": float(recall[best]),
     }
@@ -507,7 +592,11 @@ def cosine_summary(
         end = min(start + chunk_size, len(anchor))
         anchor_chunk = np.asarray(anchor[start:end], dtype=np.float32)
         vector_chunk = np.asarray(vectors[start:end], dtype=np.float32)
-        rows.append(np.sum(anchor_chunk * vector_chunk, axis=1))
+        dot = np.sum(anchor_chunk * vector_chunk, axis=1)
+        denominator = np.linalg.norm(anchor_chunk, axis=1) * np.linalg.norm(
+            vector_chunk, axis=1
+        )
+        rows.append(dot / np.maximum(denominator, 1e-12))
     cosine = np.concatenate(rows)
     return {
         "mean": float(cosine.mean()),
@@ -615,17 +704,32 @@ def main() -> None:
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--inspect-only", action="store_true")
     parser.add_argument("--source-commit", default="")
+    parser.add_argument("--allow-noncanonical-sample", action="store_true")
     args = parser.parse_args()
 
     round_id, anchor_id, conditions, manifest = load_conditions(args.conditions)
+    conditions_sha256 = sha256_file(args.conditions)
     round_dir = args.output_dir / round_id
     cache_dir = args.output_dir / "embedding_cache"
     events_path = round_dir / "events.jsonl"
+    parquet_sha256 = sha256_file(args.parquet)
+    student_sha256 = sha256_file(args.student)
+    if not args.allow_noncanonical_sample:
+        validate_canonical_artifacts(
+            max_documents=args.max_documents,
+            parquet_sha256=parquet_sha256,
+            student_sha256=student_sha256,
+            source_commit=args.source_commit,
+        )
     sample = load_document_sample(args.parquet, args.max_documents)
+    if not args.allow_noncanonical_sample:
+        validate_canonical_sample(sample)
     sample_record = {
         "dataset": WIKI727_DATASET,
         "dataset_revision": WIKI727_REVISION,
         "parquet": str(args.parquet),
+        "parquet_sha256": parquet_sha256,
+        "canonical": not args.allow_noncanonical_sample,
         "documents": len(sample.document_indices),
         "sentences": len(sample.sentences),
         "pairs": len(sample.labels),
@@ -647,6 +751,7 @@ def main() -> None:
         return
 
     import torch
+    import transformers
     from transformers import AutoModel, AutoTokenizer
 
     if not torch.cuda.is_available():
@@ -654,6 +759,16 @@ def main() -> None:
     if args.qwen_token_budget <= 0 or args.qwen_batch_size <= 0:
         raise ValueError("Qwen batch size and token budget must be positive")
     device = torch.device("cuda")
+    generator = {
+        "encoder_contract": ENCODER_CONTRACT_VERSION,
+        "source_commit": args.source_commit,
+        "torch": torch.__version__,
+        "transformers": transformers.__version__,
+        "cuda": torch.version.cuda,
+    }
+    generator_fingerprint = stable_digest(
+        (json.dumps(generator, sort_keys=True, separators=(",", ":")),)
+    )
     emit(
         events_path,
         "round_started",
@@ -674,6 +789,7 @@ def main() -> None:
         attn_implementation="sdpa",
         local_files_only=args.offline,
     ).to(device).eval()
+    qwen.config.use_cache = False
 
     cache_records: dict[str, dict[str, Any]] = {}
     instruction_paths: dict[str, Path] = {}
@@ -688,7 +804,12 @@ def main() -> None:
         )
     )
     for instruction in unique_instructions:
-        identity = cache_identity(sample.digest, instruction, args.max_length)
+        identity = cache_identity(
+            sample.digest,
+            instruction,
+            args.max_length,
+            generator_fingerprint,
+        )
         vector_path = cache_dir / f"{identity}.f16"
         metadata_path = cache_dir / f"{identity}.json"
         cache_records[identity] = encode_instruction(
@@ -703,6 +824,8 @@ def main() -> None:
             output_path=vector_path,
             metadata_path=metadata_path,
             sample_digest=sample.digest,
+            generator=generator,
+            generator_fingerprint=generator_fingerprint,
             events_path=events_path,
         )
         instruction_paths[instruction] = vector_path
@@ -712,7 +835,6 @@ def main() -> None:
     emit(events_path, "qwen_released")
 
     model = make_model(args.student, device, offline=args.offline)
-    model_sha256 = sha256_file(args.student)
     all_scores: dict[str, np.ndarray] = {}
     condition_results: dict[str, dict[str, Any]] = {}
     anchor_condition = next(row for row in conditions if row.id == anchor_id)
@@ -775,6 +897,7 @@ def main() -> None:
         "round_id": round_id,
         "anchor_id": anchor_id,
         "source_commit": args.source_commit,
+        "conditions_sha256": conditions_sha256,
         "sample": sample_record,
         "models": {
             "qwen": QWEN_MODEL,
@@ -782,7 +905,7 @@ def main() -> None:
             "distilbert": DISTILBERT_MODEL,
             "distilbert_revision": DISTILBERT_REVISION,
             "student_path": str(args.student),
-            "student_sha256": model_sha256,
+            "student_sha256": student_sha256,
         },
         "parameters": {
             "max_documents": args.max_documents,
@@ -791,7 +914,10 @@ def main() -> None:
             "student_batch_size": args.student_batch_size,
             "max_length": args.max_length,
             "offline": args.offline,
+            "allow_noncanonical_sample": args.allow_noncanonical_sample,
         },
+        "generator": generator,
+        "generator_fingerprint": generator_fingerprint,
         "environment": environment_record(torch),
         "embedding_caches": cache_records,
         "conditions": condition_results,
