@@ -151,6 +151,29 @@ accuracy, 0.2660 precision, 0.6098 recall, 0.3704 F1, 0.8314 ROC-AUC, and
 0.3933 AP. HTML section headings and simple sentence splitting supplied the
 labels, so this is not a substitute for a curated multilingual benchmark.
 
+### Instruction-conditioned steering probe
+
+Two frozen-model rounds changed only the instruction prepended to Qwen on the
+same 500-document English diagnostic. Documents 0–249 guided adaptive prompt
+design; documents 250–499 supplied a reserved comparison with thresholds
+transferred from the tuning half.
+
+The exact training instruction remained best on the reserved documents at
+0.8537 ROC-AUC, 0.4497 AP, and 0.4655 transferred F1. However, instruction
+effects were systematic rather than arbitrary. Topic-comparison wording beat
+generic semantics; semantic segmentation lenses beat a lexically matched style
+placebo; and closure-left/exact-right reached 0.8500 ROC-AUC, 0.4428 AP, and
+0.4593 transferred F1. Keeping the right vector on the trained instruction was
+far more important than keeping the left vector there.
+
+These results show that Qwen's instruction-conditioned representation is a
+usable downstream control channel even before explicit control-channel
+training. They do not show that this checkpoint is a general promptable
+segmenter: the exact instruction still defines its native distribution, and
+prompt position can shift mean predicted probability by more than 0.1. See
+[`instruction_steering_results.md`](instruction_steering_results.md) for the
+full protocol, uncertainty, prompt strings, and training implications.
+
 ## Intended uses
 
 - controlled study of continuous embedding inputs to BERT-family encoders;
@@ -177,3 +200,7 @@ labels, so this is not a substitute for a curated multilingual benchmark.
   untested.
 - Qwen inference cost and latency are external to the 45.3M-parameter saved
   classifier.
+- The checkpoint was trained under one Qwen instruction. Alternate prompts
+  alter ranking and calibration, but their intended policies were not directly
+  supervised or validated against lens-specific annotations.
+- Surrounding-sentence context inside one Qwen virtual token remains untested.

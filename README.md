@@ -15,6 +15,13 @@ retained better ranking and same-slice threshold-swept performance. A separate z
 Chinese Wikipedia probe reached 0.8314 ROC-AUC and 0.3704 boundary F1 without
 any Chinese downstream training.
 
+A subsequent frozen-model study showed that Qwen's instruction text already
+acts as a control channel into DistilBERT. Task-relevant prompts beat matched
+generic and style controls, and role-specific steering of the left sentence
+nearly preserved the trained anchor's performance. The exact training prompt
+remains best overall, exposing both the opportunity and the need for
+prompt-diverse downstream training.
+
 These are proof-of-interface-transfer results, not a claim that the continuous
 model beats the incumbent or that the current probe is a multilingual
 benchmark.
@@ -31,6 +38,8 @@ benchmark.
   corrected English comparison and the provider-metric disconnect.
 - [`docs/chinese_wikipedia_probe.md`](docs/chinese_wikipedia_probe.md) records
   the exploratory Chinese result.
+- [`docs/instruction_steering_results.md`](docs/instruction_steering_results.md)
+  records the two-round instruction-conditioned steering study.
 
 ## Executed input contract
 
@@ -59,6 +68,8 @@ has not yet been implemented or tested in this checkpoint.
    pairs represented by cached Qwen vectors.
 5. Corrected English and exploratory Chinese evaluations were run without
    changing the trained checkpoint.
+6. Two frozen-model instruction rounds established semantic, polarity, and
+   left/right role effects without modifying either model.
 
 The earlier results remain available in
 [`docs/initial_kaggle_results.md`](docs/initial_kaggle_results.md) and
@@ -71,7 +82,9 @@ python -m pip install -r requirements.txt
 python -m pytest -q
 python -m py_compile scripts/colab_train_continuous_pairs.py `
   scripts/evaluate_student_vs_baseline.py `
-  scripts/evaluate_zhwiki_probe.py
+  scripts/evaluate_zhwiki_probe.py `
+  scripts/evaluate_instruction_steering.py `
+  scripts/analyze_instruction_steering.py
 ```
 
 Generated models, caches, results, and credentials are intentionally excluded

@@ -111,11 +111,19 @@ the final model, alignment results, Chinese probe, and rescue manifests. They
 are convenient, not the only durable copy. `outputs/`, credentials, logs,
 caches, and runtime state must remain outside Git.
 
+The instruction-steering study adds ignored raw scores and analyses under
+`outputs/instruction_steering/`. A second copy is retained on the RTX 4050 host
+under `/home/jeff/EmbeddiBERT/eval/instruction_steering/run/`. The concise
+result, artifact hashes, and regeneration entry points are recorded in
+[`instruction_steering_results.md`](instruction_steering_results.md).
+
 ## Git milestones
 
 Important immutable tags include:
 
 - `kaggle-qwen06b-first-layer-v1`
+- `instruction-steering-true-initialization-v1`
+- `instruction-steering-round2-design-v1`
 - `distilbert-inquiry-true-initialization-v1`
 - `distilbert-independent-run-v2`
 - `distilbert-independent-result-v1`

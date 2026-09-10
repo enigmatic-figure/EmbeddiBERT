@@ -8,6 +8,14 @@ frozen, continuous Qwen3-Embedding-0.6B representations through
 `inputs_embeds`, learn Wiki-727K boundary detection, and retain useful zero-shot
 behavior on a small Chinese Wikipedia probe.
 
+A two-round frozen-model study has now also demonstrated a meaningful
+instruction-conditioned control channel. The exact training instruction is
+still the strongest overall input distribution, but task meaning, prompt
+polarity, and left/right role systematically change the downstream ranking and
+calibration. The best role-specific probes—closure-left/exact-right and
+continuity-left/exact-right—nearly matched the anchor on a reserved
+250-document slice without retraining.
+
 This checkpoint is a successful interface-transfer proof. It is not a claim of
 incumbent superiority, a reproduction of the provider's unpublished sampling
 pipeline, or a demonstration of the proposed multi-million-token architecture.
@@ -24,19 +32,26 @@ At handoff time:
   stopped; no project artifacts were deleted.
 - `scripts/vigil_continuous.ps1` is an untracked user file. Preserve it and do
   not add it to a commit unless the user explicitly asks.
+- Instruction-steering initialization is frozen at
+  `instruction-steering-true-initialization-v1`; the adaptive round-two design
+  is frozen at `instruction-steering-round2-design-v1`.
+- Instruction-study outputs are preserved locally under the ignored
+  `outputs/instruction_steering/` tree and on the RTX 4050 evaluation host.
 
 ## Fresh-session reading order
 
 1. Read this file.
 2. Read [`continuous_model_card.md`](continuous_model_card.md) for the exact
    architecture and training history.
-3. Read [`artifact_inventory.md`](artifact_inventory.md) before moving or
+3. Read [`instruction_steering_results.md`](instruction_steering_results.md)
+   for the completed control-channel experiment and proposed training design.
+4. Read [`artifact_inventory.md`](artifact_inventory.md) before moving or
    recomputing any large data.
-4. Read [`evaluation_diagnosis.md`](evaluation_diagnosis.md) before quoting the
+5. Read [`evaluation_diagnosis.md`](evaluation_diagnosis.md) before quoting the
    English baseline comparison.
-5. Read [`chinese_wikipedia_probe.md`](chinese_wikipedia_probe.md) before
+6. Read [`chinese_wikipedia_probe.md`](chinese_wikipedia_probe.md) before
    extending the multilingual evaluation.
-6. Consult the authoritative local JSON results listed below when exact values
+7. Consult the authoritative local JSON results listed below when exact values
    are needed. They are ignored by Git but currently present in this workspace.
 
 Authoritative local results:
@@ -46,6 +61,12 @@ Authoritative local results:
 - `outputs/distil_mlm_interpretation_20k/result.json`
 - `outputs/urgent_old_runtime_export/result.json`
 - `outputs/zhwiki_probe/results.json`
+- `outputs/instruction_steering/round1/results.json`
+- `outputs/instruction_steering/round1_tuning_analysis.json`
+- `outputs/instruction_steering/round1_holdout_analysis.json`
+- `outputs/instruction_steering/round2/results.json`
+- `outputs/instruction_steering/round2_tuning_analysis.json`
+- `outputs/instruction_steering/round2_holdout_analysis.json`
 
 ## What was actually built
 
@@ -86,6 +107,7 @@ not describe the final checkpoint as using it.
 | Continuous Wiki-727K training | Two epochs over 29,997,939 pairs; loss 0.53664 then 0.49693 | Final continuous checkpoint |
 | Corrected English diagnostic | Continuous F1 0.4360, ROC-AUC 0.8526; published baseline F1 0.4334, ROC-AUC 0.8823 | Interface proof; baseline ranks better |
 | Chinese Wikipedia probe | F1 0.3704, ROC-AUC 0.8314 across 931 weakly labeled pairs | Encouraging zero-shot probe, not a benchmark |
+| Instruction-conditioned steering | Task prompts beat generic/style controls; closure-left/exact-right reached 0.8500 ROC-AUC and 0.4593 tuning-threshold-transferred F1 versus 0.8537 and 0.4655 for the exact anchor on reserved documents | Control-channel evidence; prompt-diverse training still required |
 
 ## Parameter accounting
 
@@ -123,6 +145,8 @@ Demonstrated now:
 - a 32,768-token execution cap per sentence and 65,536 per pair;
 - English Wiki-727K downstream training;
 - a small zero-shot Chinese Wikipedia probe;
+- a two-round instruction ablation with a document-disjoint adaptive split;
+- asymmetric left/right instruction control and alternate segmentation lenses;
 - frozen Qwen during downstream training;
 - no Procrustes map and no adapter.
 
@@ -132,8 +156,9 @@ Not yet demonstrated:
 - the proposed 512-by-32K, roughly 16.8-million-token construction;
 - calibrated multilingual segmentation benchmarks;
 - Qwen3-Embedding-4B in this alignment pipeline;
-- instruction ablations, multiple context-vector layouts, or a controlled
-  from-scratch token baseline;
+- prompt-diverse downstream training, multiple context-vector layouts, or a
+  controlled from-scratch token baseline;
+- target-sentence embeddings conditioned on surrounding sentences;
 - reliable replication of BlueOrangeDigital's reported validation numbers.
 
 Qwen resolves its own 151,669-token vocabulary before DistilBERT sees anything;
@@ -147,8 +172,9 @@ that the downstream encoder is no longer bound to DistilBERT WordPiece IDs.
 - Hugging Face: the complete training cache and session archive are present in
   `IntellAgents/embeddibert-wiki727-cache-20260909`.
 - Local GPU: the evaluation machine used an RTX 4050 environment under
-  `~/EmbeddiBERT/eval/venv`; connection credentials are deliberately not stored
-  in the repository.
+  `~/EmbeddiBERT/eval/venv`. Instruction caches and raw results are retained
+  under `~/EmbeddiBERT/eval/instruction_steering/`; connection credentials are
+  deliberately not stored in the repository.
 - Kaggle: immutable experiment milestones are represented by the Git tags
   listed in `artifact_inventory.md`; job specifications remain in `jobs/`.
 
@@ -171,6 +197,10 @@ that the downstream encoder is no longer bound to DistilBERT WordPiece IDs.
   left-then-right.
 - `scripts/evaluate_zhwiki_probe.py` prepares or evaluates the reproducible
   six-article Chinese probe.
+- `scripts/evaluate_instruction_steering.py` generates instruction-specific
+  Qwen caches and scores symmetric or role-specific prompt conditions.
+- `scripts/analyze_instruction_steering.py` computes document-disjoint metrics,
+  paired document bootstraps, and tuning-to-reserved threshold transfer.
 
 Useful command shapes:
 
@@ -194,19 +224,24 @@ corresponding result JSON and Git tag first.
 
 1. Freeze the current checkpoint, result contract, and hash as the comparison
    anchor for every later ablation.
-2. Build a deterministic, document-level calibration/test split and finish only
-   the required Qwen dev/test cache instead of recaching training data.
+2. Train over an instruction distribution with semantic paraphrases, role-
+   specific left/right templates, prompt dropout, alternate segmentation
+   policies, and calibration-aware objectives. Keep the right position anchored
+   early in the curriculum, as the frozen study found it most shift-sensitive.
 3. Select a documented segmentation implementation whose dataset construction,
    class sampling, metric averaging, input order, and threshold can be exactly
    reproduced; train a controlled token DistilBERT beside the continuous model.
 4. Run multilingual evaluation on established labeled corpora. Keep the current
    Chinese HTML-heading probe as hypothesis-generating evidence only.
-5. Ablate raw embedding replacement, Procrustes, causal-free alignment,
-   teacher-response reconciliation, instruction text, and number of Qwen
-   vectors while holding task data fixed.
-6. Test document-level multi-vector layouts and increasing Qwen source lengths
+5. Encode a marked target sentence with ±1 and ±2 neighboring sentences, then
+   cross context size with the strongest instruction lenses before attempting
+   document-level multi-vector layouts.
+6. Ablate raw embedding replacement, Procrustes, causal-free alignment,
+   teacher-response reconciliation, and number of Qwen vectors while holding
+   task data fixed.
+7. Test document-level multi-vector layouts and increasing Qwen source lengths
    before making long-context capacity claims.
-7. After the 0.6B process is controlled and reproducible, repeat selected runs
+8. After the 0.6B process is controlled and reproducible, repeat selected runs
    with Qwen3-Embedding-4B.
 
 The immediate next session should begin with analysis and experiment design,
