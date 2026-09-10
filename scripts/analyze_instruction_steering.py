@@ -34,6 +34,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--document-stop", required=True, type=int)
     parser.add_argument("--bootstrap-repetitions", type=int, default=500)
     parser.add_argument("--seed", type=int, default=20260910)
+    parser.add_argument(
+        "--threshold-source",
+        type=Path,
+        help="Disjoint tuning-slice analysis supplying best_slice_threshold values.",
+    )
     parser.add_argument("--output", required=True, type=Path)
     return parser.parse_args()
 
@@ -79,6 +84,58 @@ def paired_bootstrap(
     }
 
 
+def metrics_at_threshold(
+    labels: np.ndarray, scores: np.ndarray, threshold: float
+) -> dict[str, float | int]:
+    predictions = scores >= threshold
+    positive = labels == 1
+    tp = int((predictions & positive).sum())
+    fp = int((predictions & ~positive).sum())
+    tn = int((~predictions & ~positive).sum())
+    fn = int((~predictions & positive).sum())
+    precision = tp / max(tp + fp, 1)
+    recall = tp / max(tp + fn, 1)
+    specificity = tn / max(tn + fp, 1)
+    return {
+        "threshold": threshold,
+        "predicted_positive_rate": float(predictions.mean()),
+        "accuracy": (tp + tn) / len(labels),
+        "precision": precision,
+        "recall": recall,
+        "f1": 2 * precision * recall / max(precision + recall, 1e-12),
+        "specificity": specificity,
+        "balanced_accuracy": (recall + specificity) / 2,
+        "tp": tp,
+        "fp": fp,
+        "tn": tn,
+        "fn": fn,
+    }
+
+
+def paired_threshold_bootstrap(
+    labels: np.ndarray,
+    anchor: np.ndarray,
+    contender: np.ndarray,
+    resamples: list[np.ndarray],
+    anchor_threshold: float,
+    contender_threshold: float,
+) -> dict[str, dict[str, float]]:
+    differences = {"f1": [], "balanced_accuracy": []}
+    for indices in resamples:
+        anchor_metrics = metrics_at_threshold(
+            labels[indices], anchor[indices], anchor_threshold
+        )
+        contender_metrics = metrics_at_threshold(
+            labels[indices], contender[indices], contender_threshold
+        )
+        for metric, values in differences.items():
+            values.append(contender_metrics[metric] - anchor_metrics[metric])
+    return {
+        metric: interval(np.asarray(values, dtype=np.float64))
+        for metric, values in differences.items()
+    }
+
+
 def main() -> None:
     args = parse_args()
     if args.document_start < 0 or args.document_stop <= args.document_start:
@@ -118,6 +175,28 @@ def main() -> None:
     resamples = bootstrap_indices(
         document_ids, args.bootstrap_repetitions, args.seed
     )
+    threshold_source = None
+    thresholds: dict[str, float] | None = None
+    if args.threshold_source is not None:
+        threshold_source = json.loads(args.threshold_source.read_text(encoding="utf-8"))
+        if threshold_source["round_id"] != manifest["round_id"]:
+            raise ValueError("threshold source belongs to a different round")
+        source_scope = threshold_source["scope"]
+        source_start = source_scope["document_start_inclusive"]
+        source_stop = source_scope["document_stop_exclusive"]
+        if max(source_start, args.document_start) < min(
+            source_stop, args.document_stop
+        ):
+            raise ValueError("threshold source overlaps the evaluation document range")
+        thresholds = {
+            condition_id: float(
+                threshold_source["conditions"][condition_id]["metrics"][
+                    "best_slice_threshold"
+                ]
+            )
+            for condition_id in condition_ids
+        }
+
     analyses: dict[str, Any] = {}
     for condition_id in condition_ids:
         contender = scores[condition_id]
@@ -128,6 +207,22 @@ def main() -> None:
                 labels, anchor, contender, resamples
             ),
         }
+        if thresholds is not None:
+            analyses[condition_id]["transferred_tuning_threshold"] = {
+                "metrics": metrics_at_threshold(
+                    labels, contender, thresholds[condition_id]
+                ),
+                "paired_document_bootstrap_delta_versus_anchor": (
+                    paired_threshold_bootstrap(
+                        labels,
+                        anchor,
+                        contender,
+                        resamples,
+                        thresholds[anchor_id],
+                        thresholds[condition_id],
+                    )
+                ),
+            }
 
     result = {
         "round_id": manifest["round_id"],
@@ -147,6 +242,19 @@ def main() -> None:
             "interval": "percentile_95",
             "delta_direction": "condition_minus_anchor; lower is better only for brier",
         },
+        "threshold_source": (
+            {
+                "path": str(args.threshold_source),
+                "document_start_inclusive": threshold_source["scope"][
+                    "document_start_inclusive"
+                ],
+                "document_stop_exclusive": threshold_source["scope"][
+                    "document_stop_exclusive"
+                ],
+            }
+            if threshold_source is not None
+            else None
+        ),
         "conditions": analyses,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
