@@ -1,0 +1,95 @@
+{
+  "round_id": "round2",
+  "anchor_id": "trained_boundary",
+  "conditions": [
+    {
+      "id": "trained_boundary",
+      "description": "Exact training-distribution anchor, unchanged from round one.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: "
+    },
+    {
+      "id": "explicit_boundary",
+      "description": "Round-one task paraphrase retained as a symmetric control.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for detecting a topic boundary, emphasizing cues that the following sentence starts a different topic or a new section.\nQuery: "
+    },
+    {
+      "id": "explicit_continuity",
+      "description": "Round-one polarity probe retained as a symmetric control.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that the following sentence continues the same topic and remains in the current section.\nQuery: "
+    },
+    {
+      "id": "anchor_left_no_right",
+      "description": "Qwen-style instructed-query/uninstructed-candidate probe.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: ",
+      "right_instruction": ""
+    },
+    {
+      "id": "no_left_anchor_right",
+      "description": "Reverse-role control for the instructed-query convention.",
+      "left_instruction": "",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: "
+    },
+    {
+      "id": "anchor_left_continuity_right",
+      "description": "Localize the continuity lens to the prospective next sentence.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: ",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that the following sentence continues the same topic and remains in the current section.\nQuery: "
+    },
+    {
+      "id": "continuity_left_anchor_right",
+      "description": "Reverse-role control for the continuity lens.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that the following sentence continues the same topic and remains in the current section.\nQuery: ",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: "
+    },
+    {
+      "id": "anchor_left_boundary_right",
+      "description": "Localize score-inflating boundary wording to the right sentence.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: ",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for detecting a topic boundary, emphasizing cues that the following sentence starts a different topic or a new section.\nQuery: "
+    },
+    {
+      "id": "boundary_left_anchor_right",
+      "description": "Reverse-role control for explicit boundary wording.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for detecting a topic boundary, emphasizing cues that the following sentence starts a different topic or a new section.\nQuery: ",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: "
+    },
+    {
+      "id": "anchor_left_opening_right",
+      "description": "Apply an explicit new-section-opening lens only to the right sentence.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: ",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that it opens a new topical section rather than continuing the preceding sentence.\nQuery: "
+    },
+    {
+      "id": "closure_left_anchor_right",
+      "description": "Apply an explicit section-closure lens only to the left sentence.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that it concludes or closes the current topical section before the next sentence.\nQuery: ",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing features that indicate whether the following sentence begins a new topical section.\nQuery: "
+    },
+    {
+      "id": "closure_left_opening_right",
+      "description": "Use matched closing/opening role instructions across the ordered pair.",
+      "left_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that it concludes or closes the current topical section before the next sentence.\nQuery: ",
+      "right_instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing cues that it opens a new topical section rather than continuing the preceding sentence.\nQuery: "
+    },
+    {
+      "id": "matched_style_placebo",
+      "description": "Lexically anchor-like control that redirects salience to style rather than boundaries.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing spelling, punctuation, and writing style rather than whether the following sentence begins a new topical section.\nQuery: "
+    },
+    {
+      "id": "coarse_major_theme",
+      "description": "Steer toward major section-scale subject changes and away from local variation.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing only major subject changes that begin a new section; ignore stylistic transitions and minor entity changes.\nQuery: "
+    },
+    {
+      "id": "primary_entity_change",
+      "description": "Steer toward primary-entity changes even inside a broader topic.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation, emphasizing changes in the primary entity even when the general topic remains constant.\nQuery: "
+    },
+    {
+      "id": "rhetorical_function",
+      "description": "Steer toward discourse-role transitions rather than subject-only changes.",
+      "instruction": "Instruct: Represent this Wikipedia sentence for topic segmentation by rhetorical function, emphasizing transitions among background, evidence, criticism, and conclusion.\nQuery: "
+    }
+  ]
+}
