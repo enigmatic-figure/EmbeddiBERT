@@ -57,18 +57,15 @@ has not yet been implemented or tested in this checkpoint.
 
 1. A BERT-base first-layer experiment established that a complete Qwen-derived
    vocabulary table could be mechanically aligned.
-2. All six DistilBERT attention and FFN projection blocks were trained in
-   causal-free isolation. Every isolated block improved, but the composed husk
-   failed its final-depth gate.
-3. Causal masked-token teacher-response training reconciled the layer bank.
-   The selected 20,000-step interpretation husk reduced teacher KL from 12.0502
-   to 5.2029.
-4. The token table and teacher were removed. All 45,283,586 remaining model
+2. All six DistilBERT attention matrices were trained in causal-free isolation,
+   using the attention scores of an unmodified DistilBERT model's causal-free
+   attention scores over a collection of equivalent prompts 
+3. The token table and teacher were removed. All 45,283,586 remaining model
    parameters were trained for two epochs on 29,997,939 Wiki-727K sentence
    pairs represented by cached Qwen vectors.
-5. Corrected English and exploratory Chinese evaluations were run without
+4. Corrected English and exploratory Chinese evaluations were run without
    changing the trained checkpoint.
-6. Two frozen-model instruction rounds established task-related instruction,
+5. Two frozen-model instruction rounds established task-related instruction,
    score-polarity, and left/right position effects without modifying either
    model.
 
